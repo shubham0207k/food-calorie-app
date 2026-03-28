@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Food - Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+        if (localStorage.getItem('role') !== 'admin') {
+            window.location.href = "{{ url_for('login') }}";
+        }
+    </script>
+</head>
+<body>
+    <div class="auth-container" style="max-width: 600px;">
+        <div class="dashboard-header" style="margin-bottom: 20px;">
+            <div>
+                <h1>Add Custom Food</h1>
+                <p>Insert a new food item into the database.</p>
+            </div>
+            <a href="{{ url_for('admin_foods') }}" class="btn-secondary">Back</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('add_food') }}" method="POST">
+            <div class="form-group">
+                <label for="name">Food Name</label>
+                <input type="text" id="name" name="name" placeholder="E.g., Grilled Chicken Salad" required>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label for="calories">Calories (kcal)</label>
+                    <input type="number" id="calories" name="calories" step="any" placeholder="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="protein">Protein (g)</label>
+                    <input type="number" id="protein" name="protein" step="any" placeholder="0" value="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="carbs">Carbs (g)</label>
+                    <input type="number" id="carbs" name="carbs" step="any" placeholder="0" value="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="fat">Fat (g)</label>
+                    <input type="number" id="fat" name="fat" step="any" placeholder="0" value="0">
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-primary" style="margin-top: 15px;">Save Food</button>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+[project]
+name = "food-calorie-backend"
+version = "0.1.0"
+description = "Food Calorie Estimation API with Flask and CNN"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.0.0",
+    "flask-cors>=4.0.0",
+    "numpy>=1.26.0",
+    "pillow>=10.0.0",
+    "tensorflow>=2.15.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "timm>=0.9.0",
+    "requests>=2.31.0"
+]

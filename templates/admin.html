@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard - Food Calorie Predictor</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+    <script>
+      if (localStorage.getItem("role") !== "admin") {
+        window.location.href = "{{ url_for('login') }}";
+      }
+    </script>
+  </head>
+  <body>
+    <div class="auth-container admin-container">
+      <div class="dashboard-header">
+        <div>
+          <h1>Admin Control Panel</h1>
+          <p>Manage users and food data.</p>
+        </div>
+        <a href="{{ url_for('logout') }}" class="btn-secondary">Logout</a>
+      </div>
+
+      <div class="admin-nav">
+        <a href="{{ url_for('admin_dashboard') }}" class="active">Dashboard</a>
+        <a href="{{ url_for('admin_users') }}">Manage Users</a>
+        <a href="{{ url_for('admin_foods') }}">Manage Foods</a>
+      </div>
+
+      <div class="admin-grid">
+        <div class="admin-card">
+          <h3>Total Users</h3>
+          <div class="stat">{{ users_count }}</div>
+        </div>
+        <div class="admin-card">
+          <h3>Total Custom Foods</h3>
+          <div class="stat">{{ foods_count }}</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>👥 User Entries</h2>
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for user in users %}
+              <tr>
+                <td>{{ user.id }}</td>
+                <td>{{ user.username }}</td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.role }}</td>
+                <td>
+                  {% if user.id != session.get('user_id') %}
+                  <form
+                    action="{{ url_for('delete_user', id=user.id) }}"
+                    method="POST"
+                    onsubmit="
+                      return confirm(
+                        'Are you sure you want to delete this user?',
+                      );
+                    "
+                  >
+                    <button type="submit" class="btn-danger">Delete</button>
+                  </form>
+                  {% else %}
+                  <span style="color: #94a3b8">Current</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td
+                  colspan="5"
+                  style="text-align: center; color: var(--text-secondary)"
+                >
+                  No users available
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>🍴 Food Database</h2>
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Calories</th>
+                <th>Protein</th>
+                <th>Carbs</th>
+                <th>Fat</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for food in foods %}
+              <tr>
+                <td>{{ food.id }}</td>
+                <td>{{ food.name }}</td>
+                <td>{{ food.calories }}</td>
+                <td>{{ food.protein }}</td>
+                <td>{{ food.carbs }}</td>
+                <td>{{ food.fat }}</td>
+                <td>
+                  <form
+                    action="{{ url_for('delete_food', id=food.id) }}"
+                    method="POST"
+                    onsubmit="
+                      return confirm(
+                        'Are you sure you want to delete this food item?',
+                      );
+                    "
+                  >
+                    <button type="submit" class="btn-danger">Delete</button>
+                  </form>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td
+                  colspan="7"
+                  style="text-align: center; color: var(--text-secondary)"
+                >
+                  No foods available
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

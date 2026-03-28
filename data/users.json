@@ -1,0 +1,16 @@
+[
+    {
+        "id": 1,
+        "username": "admin",
+        "email": "admin345@gmail.com",
+        "password": "scrypt:32768:8:1$TuTehGa3XnWnhjXe$701df18505da7ddcf6e08663f1ed3dff2af3256287b523887695344a06bc6967294a18c2124cc82434e9c02c313a36b98a6a341dd35a1c2423cb553b23915bae",
+        "role": "user"
+    },
+    {
+        "id": 2,
+        "username": "shubham",
+        "email": "shubh234@gmail.com",
+        "password": "scrypt:32768:8:1$WpJLYCm5vH4cPj58$ca1270ed2bce504722b8dc8bea3cc1ed5832633f13e677c0ebd2d44e0321c2a03ef9227a106ebc82ff6577813959bd34b815164cd2a8c410d3114282fe72017f",
+        "role": "user"
+    }
+]

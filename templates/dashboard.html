@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Food Calorie Predictor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="auth-container dashboard-container">
+        <div class="dashboard-header">
+            <div>
+                <h1>Food Calorie Predictor</h1>
+                <p>Welcome back, <strong>{{ username }}</strong>!</p>
+            </div>
+            <a href="{{ url_for('logout') }}" class="btn-secondary">Logout</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="dashboard-content">
+            <h2>Your Calorie Estimation Dashboard</h2>
+            <p style="margin-top: 15px; color: var(--text-secondary); line-height: 1.6;">
+                This protected area is exclusively for authenticated users. You are successfully logged in. 
+                In the full application, your food prediction interface and calorie logs would be integrated here.
+            </p>
+            
+            <div style="margin-top: 30px; text-align: center;">
+                <p style="color: var(--success-color); font-weight: 500; font-size: 16px;">
+                    ✅ Authentication module integrated perfectly.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

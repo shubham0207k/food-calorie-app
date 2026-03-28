@@ -1,0 +1,407 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Food Calorie Predictor</title>
+
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: linear-gradient(135deg, #0f172a, #1e293b);
+        color: white;
+      }
+
+      header {
+        background: linear-gradient(90deg, #7c3aed, #4f46e5);
+        padding: 16px 28px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom-left-radius: 15px;
+        border-bottom-right-radius: 15px;
+      }
+
+      header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+      }
+
+      header .user-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      header button {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 7px 12px;
+        border-radius: 8px;
+        color: white;
+        cursor: pointer;
+      }
+
+      .page-wrap {
+        padding: 30px 8px 45px;
+        max-width: 760px;
+        margin: 0 auto;
+      }
+
+      .card {
+        background: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.35);
+      }
+
+      .section-title {
+        margin: 0 0 14px;
+        font-size: 1.2rem;
+        font-weight: 700;
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .form-grid input,
+      .form-grid select {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(15, 23, 42, 0.95);
+        color: white;
+        font-size: 16px;
+      }
+
+      /* specific larger field style for food name */
+      #foodName {
+        min-height: 55px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .form-grid input:focus,
+      .form-grid select:focus {
+        outline: none;
+        border-color: #818cf8;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+      }
+
+      .btn-primary {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        cursor: pointer;
+        font-weight: 700;
+        color: white;
+        background: linear-gradient(90deg, #7c3aed, #4f46e5);
+        box-shadow: 0 6px 14px rgba(124, 58, 237, 0.45);
+      }
+
+      .message {
+        margin-top: 14px;
+        font-size: 14px;
+        min-height: 21px;
+      }
+
+      .message.error {
+        color: #fb7185;
+      }
+
+      .message.success {
+        color: #34d399;
+      }
+
+      .result-card {
+        margin-top: 20px;
+        background: rgba(51, 65, 85, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        padding: 14px 16px;
+      }
+
+      .result-card strong {
+        color: #facc15;
+      }
+
+      .history-section {
+        margin-top: 18px;
+      }
+
+      .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .history-list {
+        max-height: 260px;
+        overflow: auto;
+        background: rgba(15, 23, 42, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+      }
+
+      .history-item {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        padding: 9px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 13px;
+      }
+
+      .history-item:last-child {
+        border-bottom: none;
+      }
+
+      .history-item span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .history-head {
+        color: #94a3b8;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 8px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .link-button {
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: #c7d2fe;
+        border-radius: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <h2>🍽 Food Calorie Predictor</h2>
+      <div class="user-row">
+        <div id="welcomeText">Welcome, {{ username|default('User') }}</div>
+        <button id="logoutBtn">Logout</button>
+      </div>
+    </header>
+
+    <div class="page-wrap">
+      <div class="card">
+        <h3 class="section-title">Manual Entry</h3>
+
+        <div class="form-grid">
+          <input type="text" id="foodName" placeholder="Food Name" />
+          <input
+            type="number"
+            id="caloriesPerUnit"
+            placeholder="Calories per unit"
+            min="0"
+            step="0.01"
+          />
+          <select id="unitType">
+            <option value="grams">grams</option>
+            <option value="pieces">pieces</option>
+          </select>
+          <input
+            type="number"
+            id="quantity"
+            placeholder="Quantity"
+            min="0"
+            step="0.01"
+          />
+          <button class="btn-primary" id="addEntryBtn">Add Entry</button>
+        </div>
+
+        <p id="message" class="message"></p>
+
+        <div class="result-card" id="resultCard" style="display: none">
+          <div><strong>Food:</strong> <span id="resultFood"></span></div>
+          <div><strong>Quantity:</strong> <span id="resultQty"></span></div>
+          <div>
+            <strong>Total Calories:</strong> <span id="resultCalories"></span>
+          </div>
+        </div>
+
+        <div class="history-section">
+          <div class="history-header">
+            <div class="history-head">History</div>
+            <button class="link-button" id="clearHistoryBtn">
+              Clear History
+            </button>
+          </div>
+          <div
+            class="history-list"
+            id="historyList"
+            aria-label="calorie entry history"
+          ></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const historyKey = "calorieHistory";
+
+      const elements = {
+        food: document.getElementById("foodName"),
+        cals: document.getElementById("caloriesPerUnit"),
+        unit: document.getElementById("unitType"),
+        qty: document.getElementById("quantity"),
+        message: document.getElementById("message"),
+        resultCard: document.getElementById("resultCard"),
+        resultFood: document.getElementById("resultFood"),
+        resultQty: document.getElementById("resultQty"),
+        resultCals: document.getElementById("resultCalories"),
+        historyList: document.getElementById("historyList"),
+        addEntryBtn: document.getElementById("addEntryBtn"),
+        clearHistoryBtn: document.getElementById("clearHistoryBtn"),
+        logoutBtn: document.getElementById("logoutBtn"),
+      };
+
+      function getHistory() {
+        const raw = localStorage.getItem(historyKey);
+        try {
+          const parsed = raw ? JSON.parse(raw) : [];
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function setHistory(items) {
+        localStorage.setItem(historyKey, JSON.stringify(items));
+      }
+
+      function renderHistory() {
+        const items = getHistory();
+
+        if (!items.length) {
+          elements.historyList.innerHTML =
+            '<div class="history-item" style="grid-template-columns:1fr;">No entries yet.</div>';
+          return;
+        }
+
+        elements.historyList.innerHTML = items
+          .map(
+            (entry) => `
+            <div class="history-item">
+              <span title="${entry.food}">${entry.food}</span>
+              <span>${entry.quantity} ${entry.unit}</span>
+              <span><strong>${entry.totalCalories.toFixed(2)} kcal</strong></span>
+            </div>
+          `,
+          )
+          .join("");
+      }
+
+      function showMessage(text, type = "error") {
+        elements.message.textContent = text;
+        elements.message.className = `message ${type}`;
+      }
+
+      function clearForm() {
+        elements.food.value = "";
+        elements.cals.value = "";
+        elements.qty.value = "";
+        elements.unit.value = "grams";
+      }
+
+      elements.addEntryBtn.addEventListener("click", () => {
+        const food = elements.food.value.trim();
+        const cals = parseFloat(elements.cals.value);
+        const unit = elements.unit.value;
+        const qty = parseFloat(elements.qty.value);
+
+        if (!food || Number.isNaN(cals) || Number.isNaN(qty)) {
+          showMessage("Please fill all fields with valid values.", "error");
+          return;
+        }
+
+        if (cals <= 0 || qty <= 0) {
+          showMessage(
+            "Calories and quantity must be positive numbers.",
+            "error",
+          );
+          return;
+        }
+
+        showMessage("Saving entry to backend...", "success");
+
+        fetch("/manual", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            food: food,
+            calories_per_unit: cals,
+            unit: unit,
+            quantity: qty,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (!data.success) {
+              showMessage(data.error || "Backend error", "error");
+              return;
+            }
+
+            const nutrition = data.nutrition || {};
+            const totalCalories = nutrition.total_calories || cals * qty;
+
+            const newEntry = {
+              food,
+              unit,
+              quantity: qty,
+              caloriesPerUnit: cals,
+              totalCalories: totalCalories,
+            };
+
+            const currentHistory = getHistory();
+            currentHistory.unshift(newEntry);
+            setHistory(currentHistory);
+
+            elements.resultFood.textContent = data.food || food;
+            elements.resultQty.textContent = `${qty} ${unit}`;
+            elements.resultCals.textContent = `${Number(totalCalories).toFixed(2)} kcal`;
+            elements.resultCard.style.display = "block";
+
+            clearForm();
+            renderHistory();
+            showMessage("Entry added successfully.", "success");
+          })
+          .catch((err) => {
+            console.error("Manual API error", err);
+            showMessage("Could not reach backend.", "error");
+          });
+      });
+
+      elements.clearHistoryBtn.addEventListener("click", () => {
+        if (!confirm("Clear all history?")) return;
+        localStorage.removeItem(historyKey);
+        renderHistory();
+        showMessage("History cleared.", "success");
+        elements.resultCard.style.display = "none";
+      });
+
+      elements.logoutBtn.addEventListener("click", () => {
+        window.location.href = "/logout";
+      });
+
+      renderHistory();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Food Calorie Estimator - SaaS Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.5);
+            --primary-hover: #4f46e5;
+            --secondary: #10b981;
+            --secondary-hover: #059669;
+            --bg-start: #0f172a;
+            --bg-end: #1e1b4b;
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --item-bg: rgba(255, 255, 255, 0.03);
+            --item-hover: rgba(255, 255, 255, 0.06);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --shadow-soft: 0 10px 40px -10px rgba(0,0,0,0.5);
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --radius-sm: 8px;
+            --max-width: 1200px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Top Navigation */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: #fff;
+        }
+
+        .nav-logo {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary), #a5b4fc);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .nav-right {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: #fff;
+        }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            padding: 4rem 1rem 2rem;
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 600px; height: 300px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .hero h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 0.75rem;
+            background: linear-gradient(to right, #fff, #a5b4fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Dashboard Layout */
+        .dashboard-container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 1rem 2rem 4rem;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            flex-grow: 1;
+        }
+
+        @media (min-width: 900px) {
+            .dashboard-container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Glass Cards */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            box-shadow: var(--shadow-soft);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 45px -10px rgba(0,0,0,0.6);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: var(--radius-md);
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--item-bg);
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .upload-area input {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0; cursor: pointer; z-index: 2;
+        }
+
+        .upload-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .upload-text {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .upload-text strong { color: var(--primary); }
+
+        #image-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: var(--radius-sm);
+            margin-top: 1rem;
+            display: none;
+            object-fit: cover;
+            position: relative;
+            z-index: 3;
+            margin-left: auto; margin-right: auto;
+        }
+
+        /* Smart Manual Form */
+        .manual-form {
+            background: var(--item-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+        }
+
+        .input-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .text-input {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.2);
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .text-input:focus {
+            border-color: #34d399;
+            background: rgba(0,0,0,0.4);
+        }
+
+        /* Toggle Buttons */
+        .toggle-group {
+            display: flex;
+            background: rgba(0,0,0,0.3);
+            border-radius: var(--radius-sm);
+            padding: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 0.6rem;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .toggle-btn.active {
+            background: var(--item-bg);
+            color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* Dynamic Inputs */
+        .dynamic-input-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* Stepper */
+        .stepper {
+            display: none;
+            align-items: center;
+            background: rgba(0,0,0,0.2);
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .stepper-btn {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1.2rem;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .stepper-btn:hover { background: rgba(255,255,255,0.1); }
+
+        .stepper-value {
+            flex: 1;
+            text-align: center;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            outline: none;
+        }
+
+        /* Slider */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .range-slider {
+            flex: 1;
+            appearance: none;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .range-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #34d399;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(52, 211, 153, 0.4);
+        }
+
+        .grams-input {
+            width: 80px;
+            padding: 0.5rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.2);
+            color: #fff;
+            text-align: center;
+            outline: none;
+        }
+
+        /* Buttons */
+        .btn {
+            background: linear-gradient(135deg, var(--primary), #818cf8);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 0.9rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px var(--primary-glow);
+            filter: brightness(1.1);
+        }
+
+        .btn:disabled {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .btn-green {
+            background: linear-gradient(135deg, var(--secondary), #34d399);
+            box-shadow: 0 4px 15px rgba(16,185,129,0.3);
+        }
+
+        .btn-green:hover:not(:disabled) {
+            box-shadow: 0 8px 20px rgba(16,185,129,0.4);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            box-shadow: none;
+            margin-top: 1rem;
+        }
+        
+        .btn-outline:hover:not(:disabled) {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .spinner-icon {
+            display: none;
+            width: 18px; height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Right Panel Details */
+        
+        /* Circular Calorie Progress */
+        .daily-tracker {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--glass-border);
+            margin-bottom: 2rem;
+        }
+
+        .c-progress {
+            position: relative;
+            width: 70px; height: 70px;
+            border-radius: 50%;
+            background: conic-gradient(#34d399 0%, #34d399 65%, rgba(255,255,255,0.1) 65%);
+            display: flex; align-items: center; justify-content: center;
+        }
+        
+        .c-progress::after {
+            content: '';
+            position: absolute;
+            width: 58px; height: 58px;
+            background: var(--card-bg);
+            border-radius: 50%;
+        }
+
+        .c-progress span {
+            position: relative;
+            z-index: 2;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .tracker-info h4 { font-size: 1rem; margin-bottom: 4px; color: #fff; }
+        .tracker-info p { font-size: 0.8rem; color: var(--text-muted); }
+        .tracker-bar { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 8px; overflow:hidden;}
+        .tracker-fill { width: 65%; height: 100%; background: #34d399; }
+
+        /* Results Container */
+        .result-container {
+            display: none;
+            animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-header { margin-bottom: 1.5rem; }
+        
+        .food-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+        }
+
+        /* Confidence Bar */
+        .confidence-label {
+            display: flex; justify-content: space-between;
+            font-size: 0.85rem; color: var(--text-muted);
+            margin-bottom: 0.5rem; font-weight: 500;
+        }
+        .confidence-percentage { color: #34d399; font-weight: 700; }
+        .progress-bg {
+            width: 100%; height: 8px;
+            background: rgba(0,0,0,0.3); border-radius: 4px;
+            overflow: hidden; border: 1px solid rgba(255,255,255,0.05);
+        }
+        .progress-bar {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, #10b981, #34d399);
+            border-radius: 4px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Nutrition Cards Grid */
+        .nutrition-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .nutrition-card {
+            background: var(--item-bg);
+            border: 1px solid var(--border);
+            padding: 1.25rem 1rem;
+            border-radius: var(--radius-md);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        .nutrition-card:hover {
+            transform: translateY(-4px);
+            background: var(--item-hover);
+            border-color: rgba(255,255,255,0.15);
+        }
+
+        .card-icon { font-size: 1.4rem; margin-bottom: 0.5rem; }
+        .nutrition-value { font-size: 1.4rem; font-weight: 800; color: #fff; margin-bottom: 0.2rem; }
+        .nutrition-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+        
+        .val-cal { color: #fbbf24; }
+        .val-pro { color: #f87171; }
+        .val-car { color: #60a5fa; }
+        .val-fat { color: #c084fc; }
+
+        /* Top 3 List */
+        .top3-container {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .top3-header {
+            font-size: 0.9rem; color: #fff; margin-bottom: 1rem;
+            font-weight: 600; display: flex; align-items: center; gap: 8px;
+        }
+
+        .top3-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+        .top3-item {
+            display: flex; flex-direction: column; gap: 4px;
+        }
+
+        .top3-info {
+            display: flex; justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .top3-name { color: var(--text-main); font-weight: 500; }
+        .top3-val { color: var(--text-muted); font-size: 0.8rem; }
+        
+        .top3-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+        .top3-bar-fill { height: 100%; background: var(--primary); border-radius: 2px; }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--glass-border);
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <div class="nav-logo">AI</div>
+            <span>Food Calorie Estimator</span>
+        </div>
+        <div class="nav-right">
+            <a href="#" class="nav-link active">Dashboard</a>
+            <a href="#" class="nav-link">History</a>
+            <a href="#" class="nav-link">Daily Tracker</a>
+            <a href="#" class="nav-link">About</a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <h1>Track Calories Smartly with AI</h1>
+        <p>Upload food images or enter manually to analyze nutrition instantly using Deep Learning</p>
+    </section>
+
+    <!-- Dashboard Main -->
+    <main class="dashboard-container">
+        
+        <!-- LEFT PANEL -->
+        <div class="glass-card left-panel">
+            <h3 class="card-title"><i>📥</i> Data Input</h3>
+            
+            <!-- Image Upload -->
+            <div class="upload-area" id="drop-zone">
+                <input type="file" id="image" accept="image/*">
+                <div class="upload-icon" id="upload-icon-view">📸</div>
+                <p class="upload-text" id="upload-text-view"><strong>Click to upload</strong> or drag & drop</p>
+                <img id="image-preview" src="#" alt="Preview">
+            </div>
+
+            <button class="btn" id="predict-btn" onclick="predict()" style="margin-bottom: 2rem;">
+                <div class="spinner-icon" id="main-spinner"></div>
+                <span id="predict-btn-text">Analyze with AI</span>
+            </button>
+
+            <!-- Manual Entry -->
+            <div class="manual-form">
+                <h4 style="font-size: 0.95rem; color: #fff; margin-bottom: 1rem;">Manual Smart Entry</h4>
+                
+                <div class="input-group">
+                    <label>Food Name</label>
+                    <input type="text" id="manual-food" class="text-input" placeholder="e.g. Avocado Toast">
+                </div>
+
+                <div class="input-group">
+                    <label>Quantity Mode</label>
+                    <div class="toggle-group">
+                        <button class="toggle-btn active" onclick="setMode('grams')">Grams</button>
+                        <button class="toggle-btn" onclick="setMode('pieces')">Pieces</button>
+                        <button class="toggle-btn" onclick="setMode('servings')">Servings</button>
+                    </div>
+
+                    <div class="dynamic-input-container">
+                        <!-- Grams Mode -->
+                        <div class="slider-container" id="grams-view">
+                            <input type="range" class="range-slider" id="grams-slider" min="10" max="1000" value="100" oninput="updateGramsInput()">
+                            <input type="number" class="grams-input" id="manual-grams" value="100" oninput="updateGramsSlider()">
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">g</span>
+                        </div>
+
+                        <!-- Pieces/Servings Mode -->
+                        <div class="stepper" id="stepper-view">
+                            <button class="stepper-btn" onclick="stepValue(-1)">−</button>
+                            <input type="number" class="stepper-value" id="stepper-input" value="1" min="1">
+                            <button class="stepper-btn" onclick="stepValue(1)">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-green" id="manual-btn" onclick="manualCalculate()">
+                    <div class="spinner-icon" id="manual-spinner"></div>
+                    <span id="manual-btn-text">Calculate Calories</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL -->
+        <div class="glass-card right-panel">
+            <h3 class="card-title"><i>📊</i> Analysis Results</h3>
+
+            <!-- Daily Tracker Preview -->
+            <div class="daily-tracker" id="tracker-summary">
+                <div class="c-progress">
+                    <span>65%</span>
+                </div>
+                <div class="tracker-info">
+                    <h4>Today's Intake</h4>
+                    <p>1,450 / 2,200 kcal consumed</p>
+                    <div class="tracker-bar"><div class="tracker-fill"></div></div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" style="text-align: center; padding: 4rem 1rem; color: var(--text-muted); opacity: 0.5;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🍽️</div>
+                <p>Awaiting food input...</p>
+            </div>
+
+            <!-- Active Results -->
+            <div class="result-container" id="result-container">
+                <div class="result-header">
+                    <h2 class="food-title" id="food-name">Loading...</h2>
+                    
+                    <div class="confidence-wrapper" id="confidence-wrapper">
+                        <div class="confidence-label">
+                            <span>AI Confidence Score</span>
+                            <span class="confidence-percentage" id="confidence-text">--%</span>
+                        </div>
+                        <div class="progress-bg"><div class="progress-bar" id="confidence-bar"></div></div>
+                    </div>
+                </div>
+
+                <!-- Nutrition -->
+                <div class="nutrition-grid">
+                    <div class="nutrition-card">
+                        <div class="card-icon">🔥</div>
+                        <div class="nutrition-value val-cal" id="calories">--</div>
+                        <div class="nutrition-label">Calories</div>
+                    </div>
+                    <div class="nutrition-card">
+                        <div class="card-icon">🥩</div>
+                        <div class="nutrition-value val-pro" id="protein">--</div>
+                        <div class="nutrition-label">Protein</div>
+                    </div>
+                    <div class="nutrition-card">
+                        <div class="card-icon">🥖</div>
+                        <div class="nutrition-value val-car" id="carbs">--</div>
+                        <div class="nutrition-label">Carbs</div>
+                    </div>
+                    <div class="nutrition-card">
+                        <div class="card-icon">🥑</div>
+                        <div class="nutrition-value val-fat" id="fat">--</div>
+                        <div class="nutrition-label">Fat</div>
+                    </div>
+                </div>
+
+                <!-- Top 3 -->
+                <div class="top3-container" id="top3-container">
+                    <div class="top3-header">🎯 Top 3 Deep Learning Matches</div>
+                    <div class="top3-list" id="top3-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <button class="btn btn-outline" onclick="alert('Food added to Daily Log successfully!')">
+                    <i>📝</i> Add to Daily Log
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>⚡ Powered by Deep Learning &amp; USDA Nutrition Database</p>
+        <p style="margin-top: 6px; opacity: 0.6;">© 2026 SmartAI Foods Inc.</p>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        // DOM Elements
+        const fileInput = document.getElementById("image");
+        const imagePreview = document.getElementById("image-preview");
+        const uploadTextView = document.getElementById("upload-text-view");
+        const uploadIconView = document.getElementById("upload-icon-view");
+        
+        const predictBtn = document.getElementById("predict-btn");
+        const predictBtnText = document.getElementById("predict-btn-text");
+        const mainSpinner = document.getElementById("main-spinner");
+        
+        const manualBtn = document.getElementById("manual-btn");
+        const manualBtnText = document.getElementById("manual-btn-text");
+        const manualSpinner = document.getElementById("manual-spinner");
+        
+        const emptyState = document.getElementById("empty-state");
+        const resultContainer = document.getElementById("result-container");
+        const top3Container = document.getElementById("top3-container");
+        const top3List = document.getElementById("top3-list");
+
+        // Input Modes toggle
+        let currentMode = 'grams';
+        const gramsView = document.getElementById('grams-view');
+        const stepperView = document.getElementById('stepper-view');
+        
+        function setMode(mode) {
+            currentMode = mode;
+            const btns = document.querySelectorAll('.toggle-btn');
+            btns.forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (mode === 'grams') {
+                gramsView.style.display = 'flex';
+                stepperView.style.display = 'none';
+            } else {
+                gramsView.style.display = 'none';
+                stepperView.style.display = 'flex';
+            }
+        }
+
+        // Stepper / Slider logic
+        function updateGramsInput() {
+            document.getElementById('manual-grams').value = document.getElementById('grams-slider').value;
+        }
+        function updateGramsSlider() {
+            document.getElementById('grams-slider').value = document.getElementById('manual-grams').value;
+        }
+        function stepValue(change) {
+            const input = document.getElementById('stepper-input');
+            let val = parseInt(input.value) + change;
+            if (val < 1) val = 1;
+            input.value = val;
+        }
+
+        // Image Selection
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    imagePreview.src = event.target.result;
+                    imagePreview.style.display = 'block';
+                    uploadTextView.style.display = 'none';
+                    uploadIconView.style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // UI Loading State Adjustments
+        function toggleLoading(btn, textElement, spinnerElement, isLoading, originalText) {
+            btn.disabled = isLoading;
+            if (isLoading) {
+                textElement.innerText = "Processing...";
+                spinnerElement.style.display = "block";
+            } else {
+                textElement.innerText = originalText;
+                spinnerElement.style.display = "none";
+            }
+        }
+
+        function populateResults(data, isAssumedCnn = false) {
+            emptyState.style.display = 'none';
+            resultContainer.style.display = 'none'; // reset to re-trigger animation
+            
+            setTimeout(() => {
+                // Name & Confidence
+                document.getElementById("food-name").innerText = (data.food_name || data.food) + (data.nutrition && data.nutrition.serving_size ? ` (${data.nutrition.serving_size})` : '');
+                
+                const confWrapper = document.getElementById("confidence-wrapper");
+                if (isAssumedCnn && data.confidence !== undefined) {
+                    confWrapper.style.display = 'block';
+                    document.getElementById("confidence-text").innerText = data.confidence + "%";
+                    setTimeout(() => {
+                        document.getElementById("confidence-bar").style.width = data.confidence + "%";
+                    }, 100);
+                } else {
+                    confWrapper.style.display = 'none';
+                }
+
+                // Top 3
+                if (isAssumedCnn && data.top3 && data.top3.length > 0) {
+                    top3Container.style.display = 'block';
+                    top3List.innerHTML = '';
+                    data.top3.forEach(item => {
+                        const row = document.createElement('div');
+                        row.className = 'top3-item';
+                        row.innerHTML = `
+                            <div class="top3-info">
+                                <span class="top3-name">${item.name}</span>
+                                <span class="top3-val">${item.confidence}%</span>
+                            </div>
+                            <div class="top3-bar-bg">
+                                <div class="top3-bar-fill" style="width: ${item.confidence}%;"></div>
+                            </div>
+                        `;
+                        top3List.appendChild(row);
+                    });
+                } else {
+                    top3Container.style.display = 'none';
+                }
+
+                // Nutrition
+                if (data.nutrition) {
+                    const c = String(data.nutrition.calories);
+                    const p = String(data.nutrition.protein);
+                    const ca = String(data.nutrition.carbohydrates);
+                    const f = String(data.nutrition.fat);
+                    
+                    document.getElementById("calories").innerText = c + (c.includes('kcal') || c === 'Unknown' ? '' : ' kcal');
+                    document.getElementById("protein").innerText = p + (p.includes('g') || p === 'Unknown' ? '' : 'g');
+                    document.getElementById("carbs").innerText = ca + (ca.includes('g') || ca === 'Unknown' ? '' : 'g');
+                    document.getElementById("fat").innerText = f + (f.includes('g') || f === 'Unknown' ? '' : 'g');
+                }
+                
+                resultContainer.style.display = 'block';
+            }, 50);
+        }
+
+        // Analyze Image API
+        function predict() {
+            let file = fileInput.files[0];
+            if (!file) { alert("Please select an image first."); return; }
+
+            toggleLoading(predictBtn, predictBtnText, mainSpinner, true, "Analyze with AI");
+
+            let formData = new FormData();
+            formData.append("image", file);
+
+            fetch("http://127.0.0.1:5000/predict", { method: "POST", body: formData })
+            .then(res => res.json())
+            .then(data => {
+                toggleLoading(predictBtn, predictBtnText, mainSpinner, false, "Analyze with AI");
+                if (data.success) {
+                    // Normalize the structure coming from API
+                    const flatData = {
+                        food_name: data.prediction.food_name || data.prediction.food,
+                        food: data.prediction.food,
+                        confidence: data.prediction.confidence,
+                        top3: data.prediction.top3,
+                        nutrition: data.prediction.nutrition
+                    };
+                    populateResults(flatData, true);
+                } else {
+                    alert("Backend Error: " + data.error);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                toggleLoading(predictBtn, predictBtnText, mainSpinner, false, "Analyze with AI");
+                alert("Failed to connect to the backend server.");
+            });
+        }
+
+        // Manual Calculator API
+        function manualCalculate() {
+            const foodName = document.getElementById("manual-food").value.trim();
+            
+            // Derive grams based on selected mode securely
+            let finalGrams = 100;
+            if (currentMode === 'grams') {
+                finalGrams = parseFloat(document.getElementById("manual-grams").value);
+            } else {
+                // Approximate ratio for Pieces / Servings (Assuming 1 piece/serving = ~100g backend ratio)
+                const val = parseFloat(document.getElementById("stepper-input").value);
+                finalGrams = val * 100; 
+            }
+
+            if (!foodName || isNaN(finalGrams)) {
+                alert("Please enter a valid food name and amount.");
+                return;
+            }
+
+            toggleLoading(manualBtn, manualBtnText, manualSpinner, true, "Calculate Calories");
+
+            fetch("http://127.0.0.1:5000/manual", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ food: foodName, grams: finalGrams })
+            })
+            .then(res => res.json())
+            .then(data => {
+                toggleLoading(manualBtn, manualBtnText, manualSpinner, false, "Calculate Calories");
+                if (data.success) {
+                    populateResults(data, false);
+                } else {
+                    alert("Error: " + data.error);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                toggleLoading(manualBtn, manualBtnText, manualSpinner, false, "Calculate Calories");
+                alert("Failed to connect to the backend server.");
+            });
+        }
+    </script>
+</body>
+</html>

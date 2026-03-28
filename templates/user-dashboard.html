@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Dashboard - Food Calorie Predictor</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+    <script src="{{ url_for('static', filename='auth-guard.js') }}"></script>
+  </head>
+  <body>
+    <script>
+      // Protect this page - only regular users can access
+      if (!auth.requireUser(true)) {
+        throw new Error("Access denied");
+      }
+    </script>
+
+    <div class="dashboard-container">
+      <!-- Header -->
+      <header class="dashboard-header">
+        <div class="header-content">
+          <div>
+            <h1>🍽️ Food Calorie Predictor</h1>
+            <p>
+              Welcome, <strong id="userName"></strong>! Track your food intake
+              and calories.
+            </p>
+          </div>
+          <button onclick="auth.logout()" class="btn-secondary">Logout</button>
+        </div>
+      </header>
+
+      <!-- User Dashboard Navigation -->
+      <nav class="dashboard-nav">
+        <button class="nav-btn active" onclick="switchTab('search')">
+          Search Calories
+        </button>
+        <button class="nav-btn" onclick="switchTab('upload')">
+          Upload Image
+        </button>
+        <button class="nav-btn" onclick="switchTab('manual')">
+          Manual Entry
+        </button>
+        <button class="nav-btn" onclick="switchTab('history')">
+          My History
+        </button>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="dashboard-content">
+        <!-- Search Tab -->
+        <div id="search-tab" class="tab-content active">
+          <div class="section">
+            <h2>🔍 Search Food Calories</h2>
+            <p class="section-subtitle">
+              Search our database for nutritional information
+            </p>
+
+            <div class="search-container">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="foodSearch">Food Name</label>
+                  <input
+                    type="text"
+                    id="foodSearch"
+                    placeholder="e.g., apple, pizza, rice..."
+                    required
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label for="foodQuantity">Amount</label>
+                  <input
+                    type="number"
+                    id="foodQuantity"
+                    placeholder="1"
+                    min="0.1"
+                    step="0.1"
+                    value="1"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label for="foodUnit">Unit</label>
+                  <select
+                    id="foodUnit"
+                    onchange="toggleCustomUnit('foodUnit', 'foodUnitCustom')"
+                  >
+                    <option value="grams">grams</option>
+                    <option value="ml">ml</option>
+                    <option value="pieces">pieces</option>
+                    <option value="slices">slices</option>
+                    <option value="servings">servings</option>
+                    <option value="custom">custom</option>
+                  </select>
+                </div>
+
+                <div
+                  class="form-group"
+                  style="display: none"
+                  id="foodUnitCustomWrapper"
+                >
+                  <label for="foodUnitCustom">Custom Unit</label>
+                  <input
+                    type="text"
+                    id="foodUnitCustom"
+                    placeholder="eg: slice"
+                  />
+                </div>
+
+                <div class="form-group button-group">
+                  <button onclick="searchFood()" class="btn-primary">
+                    Search
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div id="searchResults" class="results-container"></div>
+          </div>
+        </div>
+
+        <!-- Upload Tab -->
+        <div id="upload-tab" class="tab-content">
+          <div class="section">
+            <h2>📸 Upload Food Image</h2>
+            <p class="section-subtitle">
+              Upload an image and our AI will predict the food and calories
+            </p>
+
+            <div class="upload-container">
+              <div class="upload-area" id="uploadArea">
+                <input
+                  type="file"
+                  id="foodImage"
+                  accept="image/*"
+                  hidden
+                  onchange="handleImageUpload(event)"
+                />
+                <div
+                  onclick="document.getElementById('foodImage').click()"
+                  style="cursor: pointer; text-align: center"
+                >
+                  <div style="font-size: 48px; margin-bottom: 10px">📷</div>
+                  <p style="margin: 0">Click to upload or drag and drop</p>
+                  <p style="font-size: 12px; color: #94a3b8; margin: 5px 0 0 0">
+                    PNG, JPG, GIF up to 10MB
+                  </p>
+                </div>
+              </div>
+              <div id="previewArea"></div>
+              <button
+                onclick="predictFood()"
+                class="btn-primary"
+                style="display: none"
+                id="predictBtn"
+              >
+                Predict Calories
+              </button>
+            </div>
+
+            <div id="predictionResults" class="results-container"></div>
+          </div>
+        </div>
+
+        <!-- Manual Entry Tab -->
+        <div id="manual-tab" class="tab-content">
+          <div class="section">
+            <h2>✍️ Manual Food Entry</h2>
+            <p class="section-subtitle">
+              Manually enter food details and calorie information
+            </p>
+
+            <div class="form-container">
+              <div class="form-group">
+                <label for="manualFoodName">Food Name</label>
+                <input
+                  type="text"
+                  id="manualFoodName"
+                  placeholder="Enter food name"
+                  required
+                />
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="manualQuantity">Quantity</label>
+                  <input
+                    type="number"
+                    id="manualQuantity"
+                    placeholder="1"
+                    min="0.1"
+                    step="0.1"
+                    value="1"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="manualUnit">Unit</label>
+                  <select
+                    id="manualUnit"
+                    onchange="
+                      toggleCustomUnit('manualUnit', 'manualUnitCustom')
+                    "
+                  >
+                    <option value="grams">grams</option>
+                    <option value="ml">ml</option>
+                    <option value="pieces">pieces</option>
+                    <option value="slices">slices</option>
+                    <option value="servings">servings</option>
+                    <option value="custom">custom</option>
+                  </select>
+                </div>
+                <div
+                  class="form-group"
+                  style="display: none"
+                  id="manualUnitCustomWrapper"
+                >
+                  <label for="manualUnitCustom">Custom Unit</label>
+                  <input
+                    type="text"
+                    id="manualUnitCustom"
+                    placeholder="e.g., slice"
+                  />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="manualCalories">Calories per unit</label>
+                  <input
+                    type="number"
+                    id="manualCalories"
+                    placeholder="0"
+                    min="0"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="manualProtein">Protein (g)</label>
+                  <input
+                    type="number"
+                    id="manualProtein"
+                    placeholder="0"
+                    min="0"
+                    step="0.1"
+                  />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="manualCarbs">Carbs (g)</label>
+                  <input
+                    type="number"
+                    id="manualCarbs"
+                    placeholder="0"
+                    min="0"
+                    step="0.1"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="manualFat">Fat (g)</label>
+                  <input
+                    type="number"
+                    id="manualFat"
+                    placeholder="0"
+                    min="0"
+                    step="0.1"
+                  />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="manualServing">Serving Size</label>
+                <input
+                  type="text"
+                  id="manualServing"
+                  placeholder="e.g., 100g, 1 slice"
+                  required
+                />
+              </div>
+
+              <button onclick="addManualFood()" class="btn-primary">
+                Add to History
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- History Tab -->
+        <div id="history-tab" class="tab-content">
+          <div class="section">
+            <h2>📋 Your Food History</h2>
+            <p class="section-subtitle">
+              All your logged foods and predictions
+            </p>
+
+            <div id="historyContainer" class="history-table">
+              <p style="text-align: center; color: #94a3b8; padding: 40px 20px">
+                📊 Your history will appear here as you log foods
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <style>
+      .dashboard-container {
+        min-height: 100vh;
+        background-color: var(--bg-color);
+      }
+
+      .dashboard-header {
+        background: linear-gradient(135deg, var(--primary-color), #6366f1);
+        padding: 30px 20px;
+        color: white;
+        box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
+      }
+
+      .header-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .dashboard-header h1 {
+        margin: 0 0 5px 0;
+        font-size: 28px;
+      }
+
+      .dashboard-header p {
+        margin: 0;
+        font-size: 14px;
+        opacity: 0.9;
+      }
+
+      .dashboard-nav {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        gap: 10px;
+        padding: 20px;
+        flex-wrap: wrap;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .nav-btn {
+        padding: 10px 20px;
+        background: transparent;
+        border: 2px solid transparent;
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        font-family: "Inter", sans-serif;
+      }
+
+      .nav-btn:hover {
+        color: var(--primary-color);
+        border-color: var(--primary-color);
+      }
+
+      .nav-btn.active {
+        color: var(--primary-color);
+        border-bottom: 3px solid var(--primary-color);
+        background: rgba(79, 70, 229, 0.1);
+      }
+
+      .dashboard-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 30px 20px;
+      }
+
+      .tab-content {
+        display: none;
+        animation: fadeIn 0.3s ease;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .section {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 30px;
+        margin-bottom: 20px;
+      }
+
+      .section h2 {
+        margin: 0 0 10px 0;
+        color: var(--text-primary);
+        font-size: 24px;
+      }
+
+      .section-subtitle {
+        color: var(--text-secondary);
+        margin: 0 0 20px 0;
+        font-size: 14px;
+      }
+
+      .search-container {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        align-items: flex-end;
+      }
+
+      .search-container .form-group {
+        flex: 1;
+        margin-bottom: 0;
+      }
+
+      .search-container input#foodSearch {
+        width: 100%;
+        min-width: 250px;
+        padding: 12px 16px;
+        font-size: 16px;
+      }
+
+      .search-container button {
+        flex: 0 0 140px;
+      }
+
+      .upload-container {
+        margin-bottom: 20px;
+      }
+
+      .upload-area {
+        border: 2px dashed var(--border-color);
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: rgba(79, 70, 229, 0.05);
+        margin-bottom: 20px;
+      }
+
+      .upload-area:hover {
+        border-color: var(--primary-color);
+        background: rgba(79, 70, 229, 0.1);
+      }
+
+      #previewArea {
+        margin-bottom: 20px;
+        text-align: center;
+      }
+
+      #previewArea img {
+        max-width: 100%;
+        max-height: 300px;
+        border-radius: 12px;
+        margin: 10px 0;
+      }
+
+      .form-container {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 20px;
+        border-radius: 12px;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr auto;
+        gap: 15px;
+        align-items: end;
+        margin-top: 15px;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .form-group label {
+        margin-bottom: 6px;
+        font-size: 12px;
+        color: #94a3b8;
+      }
+
+      .form-group input,
+      .form-group select {
+        padding: 10px;
+        border-radius: 8px;
+        border: none;
+        width: 100%;
+      }
+
+      .button-group {
+        display: flex;
+        align-items: end;
+      }
+
+      .button-group button {
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        background: linear-gradient(90deg, #7c3aed, #4f46e5);
+        color: white;
+        cursor: pointer;
+      }
+
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+        margin-top: 10px;
+      }
+
+      .col {
+        flex: 2;
+        min-width: 180px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .col.small {
+        flex: 1;
+        min-width: 120px;
+      }
+
+      .col-btn {
+        min-width: 120px;
+      }
+
+      .col-btn {
+        display: flex;
+        align-items: flex-end;
+      }
+
+      /* 🔥 IMPORTANT FIX */
+      .col label {
+        margin-bottom: 5px;
+        font-size: 12px;
+        color: #94a3b8;
+      }
+
+      /* input styling */
+      .col input,
+      .col select {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        border: none;
+      }
+
+      .results-container {
+        margin-top: 20px;
+      }
+
+      .result-card {
+        background: rgba(79, 70, 229, 0.1);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        transition: all 0.3s ease;
+      }
+
+      .result-card:hover {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 20px rgba(79, 70, 229, 0.2);
+      }
+
+      .result-card h3 {
+        margin: 0 0 10px 0;
+        color: var(--primary-color);
+      }
+
+      .nutrition-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+        margin-top: 15px;
+      }
+
+      .nutrition-item {
+        background: rgba(79, 70, 229, 0.1);
+        padding: 12px;
+        border-radius: 8px;
+        text-align: center;
+      }
+
+      .nutrition-label {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 5px;
+      }
+
+      .nutrition-value {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--primary-color);
+      }
+
+      .history-table {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th {
+        background: rgba(79, 70, 229, 0.1);
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-primary);
+        border-bottom: 2px solid var(--border-color);
+      }
+
+      td {
+        padding: 12px;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-secondary);
+      }
+
+      tr:hover {
+        background: rgba(79, 70, 229, 0.05);
+      }
+
+      .confidence-badge {
+        display: inline-block;
+        background: var(--success-color);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      @media (max-width: 768px) {
+        .form-row {
+          grid-template-columns: 1fr;
+        }
+
+        .section {
+          padding: 20px;
+        }
+
+        .dashboard-header {
+          padding: 20px 15px;
+        }
+
+        .header-content {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 15px;
+        }
+
+        .header-content button {
+          align-self: flex-start;
+        }
+
+        .dashboard-nav {
+          flex-direction: column;
+        }
+
+        .nav-btn {
+          width: 100%;
+        }
+      }
+    </style>
+
+    <script>
+      // Set username on page load
+      document.addEventListener("DOMContentLoaded", function () {
+        const username = localStorage.getItem("username");
+        document.getElementById("userName").textContent = username || "User";
+        loadHistory();
+      });
+
+      // Tab switching
+      function switchTab(tabName) {
+        // Hide all tabs
+        const tabs = document.querySelectorAll(".tab-content");
+        tabs.forEach((tab) => tab.classList.remove("active"));
+
+        // Remove active class from all buttons
+        const btns = document.querySelectorAll(".nav-btn");
+        btns.forEach((btn) => btn.classList.remove("active"));
+
+        // Show selected tab
+        document.getElementById(tabName + "-tab").classList.add("active");
+        event.target.classList.add("active");
+      }
+
+      // Search Food
+      async function searchFood() {
+        const foodName = document.getElementById("foodSearch").value.trim();
+        if (!foodName) {
+          alert("Please enter a food name");
+          return;
+        }
+
+        const resultsDiv = document.getElementById("searchResults");
+        resultsDiv.innerHTML =
+          '<p style="text-align: center;">🔄 Searching...</p>';
+
+        try {
+          const response = await fetch(
+            `/predict?search=${encodeURIComponent(foodName)}`,
+          );
+
+          if (!response.ok) {
+            // If search endpoint doesn't exist, use static data
+            showSearchResults(getDummyFoodData(foodName));
+          } else {
+            const data = await response.json();
+            showSearchResults([data]);
+          }
+        } catch (error) {
+          // Use dummy data for demonstration
+          showSearchResults(getDummyFoodData(foodName));
+        }
+      }
+
+      function getDummyFoodData(foodName) {
+        const foods = {
+          apple: {
+            name: "Apple",
+            calories: 95,
+            serving: "1 medium (182g)",
+            protein: "0.5g",
+            carbs: "25g",
+            fat: "0.3g",
+          },
+          banana: {
+            name: "Banana",
+            calories: 105,
+            serving: "1 medium (118g)",
+            protein: "1.3g",
+            carbs: "27g",
+            fat: "0.4g",
+          },
+          pizza: {
+            name: "Pizza",
+            calories: 285,
+            serving: "1 slice (107g)",
+            protein: "12g",
+            carbs: "36g",
+            fat: "10g",
+          },
+          burger: {
+            name: "Burger",
+            calories: 354,
+            serving: "1 burger (110g)",
+            protein: "20g",
+            carbs: "29g",
+            fat: "17g",
+          },
+          rice: {
+            name: "Rice",
+            calories: 206,
+            serving: "1 cup cooked (158g)",
+            protein: "4.3g",
+            carbs: "45g",
+            fat: "0.4g",
+          },
+        };
+        return [
+          foods[foodName.toLowerCase()] || {
+            name: foodName,
+            calories: 150,
+            serving: "100g",
+            protein: "5g",
+            carbs: "20g",
+            fat: "5g",
+          },
+        ];
+      }
+
+      function showSearchResults(results) {
+        const resultsDiv = document.getElementById("searchResults");
+        if (!results || results.length === 0) {
+          resultsDiv.innerHTML =
+            '<p style="text-align: center; color: #ef4444;">❌ No results found</p>';
+          return;
+        }
+
+        const qty =
+          parseFloat(document.getElementById("foodQuantity").value) || 1;
+        const selectedUnit = getEffectiveUnit("foodUnit", "foodUnitCustom");
+        const unit = selectedUnit.toLowerCase();
+
+        let html = "";
+        results.forEach((food) => {
+          const baseCalories = Number(food.calories) || 0;
+          let totalCalories = baseCalories;
+
+          if (unit === "grams" || unit === "g" || unit === "ml") {
+            // attempt to parse serving grams from text e.g., 182g
+            const match = String(food.serving || "").match(
+              /(\d+(?:\.\d+)?)\s*g/i,
+            );
+            const servingGrams = match ? parseFloat(match[1]) : 100;
+            totalCalories = (baseCalories / servingGrams) * qty;
+          } else {
+            // pieces/slices/servings/custom: multiply by the number
+            totalCalories = baseCalories * qty;
+          }
+
+          totalCalories = Number(totalCalories.toFixed(2));
+
+          html += `
+                    <div class="result-card">
+                        <h3>🍽️ ${food.name || "Unknown Food"}</h3>
+                        <div class="nutrition-grid">
+                            <div class="nutrition-item">
+                                <div class="nutrition-label">Calories</div>
+                                <div class="nutrition-value">${food.calories || 0}</div>
+                            </div>
+                            <div class="nutrition-item">
+                                <div class="nutrition-label">Protein</div>
+                                <div class="nutrition-value">${food.protein || "N/A"}</div>
+                            </div>
+                            <div class="nutrition-item">
+                                <div class="nutrition-label">Carbs</div>
+                                <div class="nutrition-value">${food.carbs || "N/A"}</div>
+                            </div>
+                            <div class="nutrition-item">
+                                <div class="nutrition-label">Fat</div>
+                                <div class="nutrition-value">${food.fat || "N/A"}</div>
+                            </div>
+                        </div>
+                        <p style="margin-top: 15px; font-size: 12px; color: #94a3b8;">Serving: ${food.serving || "100g"}</p>
+                        <p style="margin-top: 8px; font-size: 13px; color: #a5b4fc;">Amount: ${qty} ${selectedUnit} ➜ Total: ${totalCalories} kcal</p>
+                        <button onclick="addToHistory('${food.name}', ${totalCalories}, '${qty} ${selectedUnit}')" class="btn-primary" style="margin-top: 10px; width: 100%;">
+                            ✓ Add to History
+                        </button>
+                    </div>
+                `;
+        });
+        resultsDiv.innerHTML = html;
+      }
+
+      function getEffectiveUnit(selectId, customInputId) {
+        const selected = document.getElementById(selectId).value;
+        if (selected === "custom") {
+          const customValue = document
+            .getElementById(customInputId)
+            .value.trim();
+          return customValue || "custom";
+        }
+        return selected;
+      }
+
+      function toggleCustomUnit(selectId, customWrapperId) {
+        const selected = document.getElementById(selectId).value;
+        const wrapper = document.getElementById(customWrapperId);
+        if (selected === "custom") {
+          wrapper.style.display = "block";
+        } else {
+          wrapper.style.display = "none";
+        }
+      }
+
+      // Image Upload
+      function handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          document.getElementById("previewArea").innerHTML =
+            `<img src="${e.target.result}" alt="Preview">`;
+          document.getElementById("predictBtn").style.display = "block";
+        };
+        reader.readAsDataURL(file);
+      }
+
+      async function predictFood() {
+        const fileInput = document.getElementById("foodImage");
+        if (!fileInput.files[0]) {
+          alert("Please select an image");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("image", fileInput.files[0]);
+
+        const resultsDiv = document.getElementById("predictionResults");
+        resultsDiv.innerHTML =
+          '<p style="text-align: center;">🤖 Analyzing image...</p>';
+
+        try {
+          const response = await fetch("/predict", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            showPredictionResults(data);
+          } else {
+            resultsDiv.innerHTML = `
+                        <div class="result-card">
+                            <h3>📸 Prediction Demo</h3>
+                            <p>Model prediction: <strong>Pizza</strong></p>
+                            <span class="confidence-badge">95% Confidence</span>
+                            <div class="nutrition-grid" style="margin-top: 15px;">
+                                <div class="nutrition-item">
+                                    <div class="nutrition-label">Calories</div>
+                                    <div class="nutrition-value">285</div>
+                                </div>
+                                <div class="nutrition-item">
+                                    <div class="nutrition-label">Protein</div>
+                                    <div class="nutrition-value">12g</div>
+                                </div>
+                                <div class="nutrition-item">
+                                    <div class="nutrition-label">Carbs</div>
+                                    <div class="nutrition-value">36g</div>
+                                </div>
+                                <div class="nutrition-item">
+                                    <div class="nutrition-label">Fat</div>
+                                    <div class="nutrition-value">10g</div>
+                                </div>
+                            </div>
+                            <button onclick="addToHistory('Pizza', 285, '1 slice')" class="btn-primary" style="margin-top: 10px; width: 100%;">
+                                ✓ Add to History
+                            </button>
+                        </div>
+                    `;
+          }
+        } catch (error) {
+          resultsDiv.innerHTML =
+            '<p style="text-align: center; color: #ef4444;">❌ Error predicting food</p>';
+        }
+      }
+
+      function showPredictionResults(data) {
+        const resultsDiv = document.getElementById("predictionResults");
+        const html = `
+                <div class="result-card">
+                    <h3>🤖 ${data.food || "Detected Food"}</h3>
+                    <span class="confidence-badge">${Math.round((data.confidence || 0.5) * 100)}% Confidence</span>
+                    <div class="nutrition-grid" style="margin-top: 15px;">
+                        <div class="nutrition-item">
+                            <div class="nutrition-label">Calories</div>
+                            <div class="nutrition-value">${data.calories || 0}</div>
+                        </div>
+                        <div class="nutrition-item">
+                            <div class="nutrition-label">Protein</div>
+                            <div class="nutrition-value">${data.protein || "N/A"}</div>
+                        </div>
+                        <div class="nutrition-item">
+                            <div class="nutrition-label">Carbs</div>
+                            <div class="nutrition-value">${data.carbs || "N/A"}</div>
+                        </div>
+                        <div class="nutrition-item">
+                            <div class="nutrition-label">Fat</div>
+                            <div class="nutrition-value">${data.fat || "N/A"}</div>
+                        </div>
+                    </div>
+                    <button onclick="addToHistory('${data.food}', ${data.calories}, '${data.serving}')" class="btn-primary" style="margin-top: 10px; width: 100%;">
+                        ✓ Add to History
+                    </button>
+                </div>
+            `;
+        resultsDiv.innerHTML = html;
+      }
+
+      // Manual Food Entry
+      async function addManualFood() {
+        const name = document.getElementById("manualFoodName").value.trim();
+        const quantity = parseFloat(
+          document.getElementById("manualQuantity").value,
+        );
+        const selectedUnit = getEffectiveUnit("manualUnit", "manualUnitCustom");
+        const unit = selectedUnit;
+        const caloriesPerUnit = parseFloat(
+          document.getElementById("manualCalories").value,
+        );
+        const protein = document.getElementById("manualProtein").value || "0";
+        const carbs = document.getElementById("manualCarbs").value || "0";
+        const fat = document.getElementById("manualFat").value || "0";
+        const serving = document.getElementById("manualServing").value.trim();
+
+        if (
+          !name ||
+          Number.isNaN(quantity) ||
+          Number.isNaN(caloriesPerUnit) ||
+          !serving
+        ) {
+          alert("Please fill in all required fields and valid values");
+          return;
+        }
+
+        if (quantity <= 0 || caloriesPerUnit <= 0) {
+          alert("Quantity and calories per unit must be greater than 0");
+          return;
+        }
+
+        const totalCalories = Number((quantity * caloriesPerUnit).toFixed(2));
+
+        try {
+          await fetch("/manual", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              food: name,
+              calories_per_unit: caloriesPerUnit,
+              unit,
+              quantity,
+            }),
+          });
+        } catch (error) {
+          console.log("Manual entry saved locally");
+        }
+
+        const formattedServing = `${quantity} ${unit}`;
+        addToHistory(name, totalCalories, formattedServing);
+
+        // Clear form
+        document.getElementById("manualFoodName").value = "";
+        document.getElementById("manualQuantity").value = "1";
+        document.getElementById("manualUnit").value = "grams";
+        document.getElementById("manualUnitCustom").value = "";
+        document.getElementById("manualUnitCustomWrapper").style.display =
+          "none";
+        document.getElementById("manualCalories").value = "";
+        document.getElementById("manualProtein").value = "";
+        document.getElementById("manualCarbs").value = "";
+        document.getElementById("manualFat").value = "";
+        document.getElementById("manualServing").value = "";
+
+        alert("✓ Food added to history!");
+      }
+
+      // History Management
+      function addToHistory(name, calories, serving) {
+        let history = JSON.parse(localStorage.getItem("foodHistory") || "[]");
+        history.unshift({
+          id: Date.now(),
+          name,
+          calories,
+          serving,
+          date: new Date().toLocaleString(),
+        });
+        history = history.slice(0, 50); // Keep last 50 items
+        localStorage.setItem("foodHistory", JSON.stringify(history));
+        loadHistory();
+      }
+
+      function loadHistory() {
+        const history = JSON.parse(localStorage.getItem("foodHistory") || "[]");
+        const container = document.getElementById("historyContainer");
+
+        if (history.length === 0) {
+          container.innerHTML =
+            '<p style="text-align: center; color: #94a3b8; padding: 40px 20px;">📊 Your history will appear here as you log foods</p>';
+          return;
+        }
+
+        let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>🍽️ Food Name</th>
+                            <th>🔥 Calories</th>
+                            <th>📏 Serving</th>
+                            <th>📅 Date</th>
+                            <th>⚙️ Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+        history.forEach((item) => {
+          html += `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td><strong>${item.calories}</strong></td>
+                        <td>${item.serving}</td>
+                        <td>${item.date}</td>
+                        <td><button onclick="deleteHistoryItem(${item.id})" class="btn-delete">Delete</button></td>
+                    </tr>
+                `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            `;
+
+        container.innerHTML = html;
+      }
+
+      function deleteHistoryItem(id) {
+        let history = JSON.parse(localStorage.getItem("foodHistory") || "[]");
+        history = history.filter((item) => item.id !== id);
+        localStorage.setItem("foodHistory", JSON.stringify(history));
+        loadHistory();
+      }
+    </script>
+  </body>
+</html>
