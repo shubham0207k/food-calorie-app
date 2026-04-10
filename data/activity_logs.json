@@ -1,0 +1,11 @@
+[
+    {
+        "id": 1,
+        "user_email": "s234@gmail.com",
+        "action_type": "search",
+        "food_name": "Apple",
+        "quantity": "100g",
+        "calories": 52,
+        "timestamp": "2026-04-10T22:24:18.312479"
+    }
+]

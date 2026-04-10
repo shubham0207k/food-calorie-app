@@ -1,317 +1,4 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>User Dashboard - Food Calorie Predictor</title>
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
-    <script src="{{ url_for('static', filename='auth-guard.js') }}"></script>
-  </head>
-  <body>
-    <script>
-      // Protect this page - only regular users can access
-      if (!auth.requireUser(true)) {
-        throw new Error("Access denied");
-      }
-    </script>
 
-    <div class="dashboard-container">
-      <!-- Header -->
-      <header class="dashboard-header">
-        <div class="header-content">
-          <div>
-            <h1>🍽️ Food Calorie Predictor</h1>
-            <p>
-              Welcome back, <strong id="userName" style="color: #d8b4fe;"></strong>! Track your food intake
-              and calculate calories.
-            </p>
-          </div>
-          <button onclick="auth.logout()" class="btn-secondary">Logout</button>
-        </div>
-      </header>
-
-      <!-- Daily Stats -->
-      <div class="daily-stats-card">
-        <div class="daily-stats-header">
-          <div>
-            <div class="stats-title">Daily Calorie Intake</div>
-            <div class="stats-value"><span id="dailyCaloriesStat">0</span> <span style="font-size: 16px; opacity: 0.8;">/ 2000 kcal</span></div>
-          </div>
-          <div style="font-size: 24px;">🔥</div>
-        </div>
-        <div class="progress-container">
-          <div class="progress-bar-fill" id="dailyProgressBar" style="width: 0%"></div>
-        </div>
-      </div>
-
-      <!-- User Dashboard Navigation -->
-      <nav class="dashboard-nav">
-        <button class="nav-btn active" onclick="switchTab(this, 'search')">
-          🔍 Search
-        </button>
-        <button class="nav-btn" onclick="switchTab(this, 'upload')">
-          📸 Upload Image
-        </button>
-        <button class="nav-btn" onclick="switchTab(this, 'manual')">
-          ✍️ Manual Entry
-        </button>
-        <button class="nav-btn" onclick="switchTab(this, 'history')">
-          📋 History
-        </button>
-      </nav>
-
-      <!-- Main Content -->
-      <main class="dashboard-content">
-        <!-- Search Tab -->
-        <div id="search-tab" class="tab-content active">
-          <div class="section">
-            <h2>Search Food</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 24px;">
-              Search our database for accurate nutritional information
-            </p>
-
-            <div class="search-wrapper">
-              <div class="search-grid">
-                <div class="form-group">
-                  <label for="foodSearch">Food Name</label>
-                  <input
-                    type="text"
-                    id="foodSearch"
-                    placeholder="e.g., apple, pizza, rice..."
-                    required
-                  />
-                </div>
-
-                <div class="form-group">
-                  <label for="foodQuantity">Amount</label>
-                  <input
-                    type="number"
-                    id="foodQuantity"
-                    placeholder="1"
-                    min="0.1"
-                    step="0.1"
-                    value="1"
-                  />
-                </div>
-
-                <div class="form-group">
-                  <label for="foodUnit">Unit</label>
-                  <select
-                    id="foodUnit"
-                    onchange="toggleCustomUnit('foodUnit', 'foodUnitCustomWrapper')"
-                  >
-                    <option value="grams">grams</option>
-                    <option value="ml">ml</option>
-                    <option value="pieces">pieces</option>
-                    <option value="slices">slices</option>
-                    <option value="servings">servings</option>
-                    <option value="custom">custom</option>
-                  </select>
-                </div>
-
-                <div
-                  class="form-group"
-                  style="display: none;"
-                  id="foodUnitCustomWrapper"
-                >
-                  <label for="foodUnitCustom">Custom</label>
-                  <input
-                    type="text"
-                    id="foodUnitCustom"
-                    placeholder="eg: slice"
-                  />
-                </div>
-
-                <div class="form-group">
-                  <button onclick="searchFood()" class="btn-primary">
-                    Search
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div id="searchResults" class="results-container"></div>
-          </div>
-        </div>
-
-        <!-- Upload Tab -->
-        <div id="upload-tab" class="tab-content">
-          <div class="section">
-            <h2>Upload Food Image</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 24px;">
-              Upload an image and our AI will predict the food and calories
-            </p>
-
-            <div class="upload-container">
-              <div class="upload-area" id="uploadArea" onclick="document.getElementById('foodImage').click()">
-                <input
-                  type="file"
-                  id="foodImage"
-                  accept="image/*"
-                  hidden
-                  onchange="handleImageUpload(event)"
-                />
-                <div style="font-size: 48px; margin-bottom: 15px;">📷</div>
-                <p style="margin: 0; font-weight: 500; font-size: 16px;">Click to upload or drag and drop</p>
-                <p style="font-size: 12px; color: var(--text-secondary); margin: 8px 0 0 0;">
-                  PNG, JPG, JPEG up to 10MB
-                </p>
-              </div>
-              
-              <div id="previewArea"></div>
-              
-              <button
-                onclick="predictFood()"
-                class="btn-primary"
-                style="display: none; margin-top: 24px; width: 100%;"
-                id="predictBtn"
-              >
-                Predict Calories ✨
-              </button>
-            </div>
-
-            <div id="predictionResults" class="results-container"></div>
-          </div>
-        </div>
-
-        <!-- Manual Entry Tab -->
-        <div id="manual-tab" class="tab-content">
-          <div class="section">
-            <h2>Manual Food Entry</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 24px;">
-              Manually enter food details and calorie information
-            </p>
-
-            <div class="form-container">
-              <div class="form-group">
-                <label for="manualFoodName">Food Name</label>
-                <input
-                  type="text"
-                  id="manualFoodName"
-                  placeholder="Enter food name"
-                  required
-                />
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="manualQuantity">Quantity</label>
-                  <input
-                    type="number"
-                    id="manualQuantity"
-                    placeholder="1"
-                    min="0.1"
-                    step="0.1"
-                    value="1"
-                    required
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="manualUnit">Unit</label>
-                  <select
-                    id="manualUnit"
-                    onchange="toggleCustomUnit('manualUnit', 'manualUnitCustomWrapper')"
-                  >
-                    <option value="grams">grams</option>
-                    <option value="ml">ml</option>
-                    <option value="pieces">pieces</option>
-                    <option value="slices">slices</option>
-                    <option value="servings">servings</option>
-                    <option value="custom">custom</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div class="form-group" style="display: none;" id="manualUnitCustomWrapper">
-                  <label for="manualUnitCustom">Custom Unit</label>
-                  <input type="text" id="manualUnitCustom" placeholder="e.g., slice" />
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="manualCalories">Calories per unit</label>
-                  <input
-                    type="number"
-                    id="manualCalories"
-                    placeholder="0"
-                    min="0"
-                    required
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="manualProtein">Protein (g)</label>
-                  <input
-                    type="number"
-                    id="manualProtein"
-                    placeholder="0"
-                    min="0"
-                    step="0.1"
-                  />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="manualCarbs">Carbs (g)</label>
-                  <input
-                    type="number"
-                    id="manualCarbs"
-                    placeholder="0"
-                    min="0"
-                    step="0.1"
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="manualFat">Fat (g)</label>
-                  <input
-                    type="number"
-                    id="manualFat"
-                    placeholder="0"
-                    min="0"
-                    step="0.1"
-                  />
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label for="manualServing">Serving Size</label>
-                <input
-                  type="text"
-                  id="manualServing"
-                  placeholder="e.g., 100g, 1 slice"
-                  required
-                />
-              </div>
-
-              <button onclick="addManualFood()" class="btn-primary" style="margin-top: 16px; width: 100%;">
-                Add to History
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- History Tab -->
-        <div id="history-tab" class="tab-content">
-          <div class="section">
-            <h2>Your Food History</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 24px;">
-              All your logged foods and predictions
-            </p>
-
-            <div id="historyContainer" class="history-table data-table-wrapper">
-              <p style="text-align: center; color: var(--text-secondary); padding: 40px 20px">
-                Your history will appear here as you log foods
-              </p>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-
-    <script>
       // Page initialization
       document.addEventListener("DOMContentLoaded", function () {
         const username = localStorage.getItem("username");
@@ -320,23 +7,12 @@
         updateDailyStats();
       });
 
-      // Activity Logger
-      async function logUserActivity(actionType, foodName, calories, quantity) {
-        try {
-          await fetch('/api/log_activity', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action_type: actionType, food_name: foodName, calories: calories, quantity: quantity })
-          });
-        } catch (e) { console.error('Activity log failed', e); }
-      }
-
       // Tab switching
-      function switchTab(btn, tabName) {
+      function switchTab(tabName) {
         document.querySelectorAll(".tab-content").forEach((tab) => tab.classList.remove("active"));
-        document.querySelectorAll(".nav-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".nav-btn").forEach((btn) => btn.classList.remove("active"));
         document.getElementById(tabName + "-tab").classList.add("active");
-        btn.classList.add("active");
+        event.target.classList.add("active");
       }
 
       // Search Food
@@ -371,7 +47,6 @@
                 fat: data.nutrition.fat !== "Unknown" ? data.nutrition.fat + "g" : "0g",
                 serving: "100g"
               };
-              logUserActivity('search', data.food, data.nutrition.calories, "100g");
               showSearchResults([mappedData]);
             } else {
               showSearchResults(getDummyFoodData(foodName));
@@ -500,9 +175,6 @@
           const response = await fetch("/predict", { method: "POST", body: formData });
           if (response.ok) {
             const data = await response.json();
-            const predictedFoodName = data.final_food || data.food || (data.prediction && data.prediction.food) || "Unknown";
-            const predictedCals = (data.calories_data && data.calories_data.calories) || (data.prediction && data.prediction.nutrition && data.prediction.nutrition.calories) || 0;
-            logUserActivity('upload', predictedFoodName, predictedCals, "1 serving");
             showPredictionResults(data);
           } else {
             // Demo fallback
@@ -627,7 +299,6 @@
 
         const formattedServing = `${quantity} ${selectedUnit}`;
         addToHistory(name, totalCalories, formattedServing);
-        logUserActivity('manual', name, totalCalories, formattedServing);
 
         // Reset
         document.getElementById("manualFoodName").value = "";
@@ -690,7 +361,7 @@
           return;
         }
 
-        let html = `
+        let html = \`
           <table class="data-table">
               <thead>
                   <tr>
@@ -702,21 +373,21 @@
                   </tr>
               </thead>
               <tbody>
-        `;
+        \`;
 
         history.forEach((item) => {
-          html += `
+          html += \`
               <tr>
-                  <td style="font-weight: 500; color: #fff; text-transform: capitalize;">${item.name}</td>
-                  <td style="color: #fca5a5; font-weight: 600;">${item.calories}</td>
-                  <td>${item.serving}</td>
-                  <td style="font-size: 13px; color: var(--text-secondary);">${item.date}</td>
-                  <td><button onclick="deleteHistoryItem(${item.id})" class="btn-danger">Delete</button></td>
+                  <td style="font-weight: 500; color: #fff; text-transform: capitalize;">\${item.name}</td>
+                  <td style="color: #fca5a5; font-weight: 600;">\${item.calories}</td>
+                  <td>\${item.serving}</td>
+                  <td style="font-size: 13px; color: var(--text-secondary);">\${item.date}</td>
+                  <td><button onclick="deleteHistoryItem(\${item.id})" class="btn-danger">Delete</button></td>
               </tr>
-          `;
+          \`;
         });
 
-        html += `</tbody></table>`;
+        html += \`</tbody></table>\`;
         container.innerHTML = html;
       }
 
@@ -727,6 +398,4 @@
         loadHistory();
         updateDailyStats();
       }
-    </script>
-  </body>
-</html>
+    

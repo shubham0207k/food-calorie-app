@@ -9,6 +9,7 @@
       href="{{ url_for('static', filename='style.css') }}"
     />
     <script src="{{ url_for('static', filename='auth-guard.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       .stats-grid {
         display: grid;
@@ -167,17 +168,23 @@
 
       <!-- Admin Dashboard Navigation -->
       <nav class="admin-nav">
-        <button class="nav-btn active" onclick="switchTab('overview')">
+        <button class="nav-btn active" onclick="switchTab(this, 'overview')">
           📊 Overview
         </button>
-        <button class="nav-btn" onclick="switchTab('users')">
+        <button class="nav-btn" onclick="switchTab(this, 'users')">
           👥 Manage Users
         </button>
-        <button class="nav-btn" onclick="switchTab('foods')">
+        <button class="nav-btn" onclick="switchTab(this, 'foods')">
           🍽️ Manage Foods
         </button>
-        <button class="nav-btn" onclick="switchTab('tracker')">
+        <button class="nav-btn" onclick="switchTab(this, 'tracker')">
           🍱 Calorie Tracker
+        </button>
+        <button class="nav-btn" onclick="switchTab(this, 'logs')">
+          📜 Activity Logs
+        </button>
+        <button class="nav-btn" onclick="switchTab(this, 'analytics')">
+          📈 Analytics
         </button>
       </nav>
 
@@ -212,10 +219,24 @@
                 </div>
               </div>
               <div class="stat-card">
-                <div class="stat-icon">⚙️</div>
+                <div class="stat-icon">🟢</div>
                 <div class="stat-info">
-                  <div class="stat-label">Admin Accounts</div>
-                  <div class="stat-value" id="adminUsers">-</div>
+                  <div class="stat-label">Active Users Today</div>
+                  <div class="stat-value" id="activeToday">-</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">🔍</div>
+                <div class="stat-info">
+                  <div class="stat-label">Total Searches</div>
+                  <div class="stat-value" id="totalSearches">-</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">🥇</div>
+                <div class="stat-info">
+                  <div class="stat-label">Most Searched</div>
+                  <div class="stat-value" id="mostSearched" style="font-size: 20px;">-</div>
                 </div>
               </div>
             </div>
@@ -445,6 +466,59 @@
             </div>
           </div>
         </div>
+
+        <!-- Activity Logs Tab -->
+        <div id="logs-tab" class="tab-content">
+          <div class="section">
+            <h2>User Activity Logs</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 24px;">Real-time stream of all user actions</p>
+            
+            <div class="search-container">
+              <input type="text" id="logFilter" placeholder="Filter by email or action type..." onkeyup="renderActivityLogs()" />
+            </div>
+
+            <div class="data-table-wrapper">
+              <table class="data-table" id="logsTable">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>User Email</th>
+                    <th>Action Type</th>
+                    <th>Food Name</th>
+                    <th>Calories</th>
+                    <th>Quantity</th>
+                  </tr>
+                </thead>
+                <tbody id="logsTableBody">
+                  <tr><td colspan="6" style="text-align: center; color: var(--text-secondary)">Loading activity logs...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div id="analytics-tab" class="tab-content">
+          <div class="section">
+            <h2>System Analytics</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 24px;">Visualizations of activity data</p>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+              <div class="form-section">
+                <h3 style="text-align: center;">Action Types Distribution</h3>
+                <canvas id="actionPieChart" style="max-height: 300px;"></canvas>
+              </div>
+              <div class="form-section">
+                <h3 style="text-align: center;">Activity Trend (Last 7 Days)</h3>
+                <canvas id="activityLineChart" style="max-height: 300px;"></canvas>
+              </div>
+            </div>
+            <div class="form-section">
+               <h3 style="text-align: center;">Top 5 Logged Foods</h3>
+               <canvas id="topFoodsBarChart" style="max-height: 300px;"></canvas>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
 
@@ -455,15 +529,20 @@
         loadUsers();
         loadFoods();
         loadTrackerHistory();
+        loadActivityLogs();
       });
 
       // Tab switching
-      function switchTab(tabName) {
+      function switchTab(btn, tabName) {
         document.querySelectorAll(".tab-content").forEach((tab) => tab.classList.remove("active"));
-        document.querySelectorAll(".nav-btn").forEach((btn) => btn.classList.remove("active"));
+        document.querySelectorAll(".nav-btn").forEach((b) => b.classList.remove("active"));
         document.getElementById(tabName + "-tab").classList.add("active");
-        event.target.classList.add("active");
+        btn.classList.add("active");
         if (tabName === 'tracker') loadTrackerHistory();
+        if (tabName === 'logs' || tabName === 'analytics' || tabName === 'overview') {
+            loadActivityLogs();
+            loadStats();
+        }
       }
 
       // Load Statistics
@@ -475,7 +554,14 @@
             document.getElementById("totalUsers").textContent = data.totalUsers || 0;
             document.getElementById("totalFoods").textContent = data.totalFoods || 0;
             document.getElementById("regularUsers").textContent = data.regularUsers || 0;
-            document.getElementById("adminUsers").textContent = data.adminUsers || 0;
+            
+            // New metrics
+            const elActive = document.getElementById("activeToday");
+            if (elActive) elActive.textContent = data.activeToday || 0;
+            const elSearches = document.getElementById("totalSearches");
+            if (elSearches) elSearches.textContent = data.totalSearches || 0;
+            const elMostSearched = document.getElementById("mostSearched");
+            if (elMostSearched) elMostSearched.textContent = data.mostSearched || "-";
           } else {
             loadStatsFromLocal();
           }
@@ -749,6 +835,137 @@
         history = history.filter(item => item.id !== id);
         localStorage.setItem("adminTrackerHistory", JSON.stringify(history));
         loadTrackerHistory();
+      }
+
+      // --- Activity Logs & Analytics ---
+      let activityLogs = [];
+
+      async function loadActivityLogs() {
+        try {
+          const response = await fetch("/admin/activity_logs");
+          if (response.ok) {
+            const data = await response.json();
+            activityLogs = data.logs || [];
+            renderActivityLogs();
+            drawCharts(activityLogs);
+          }
+        } catch(err) { console.error("Error loading logs", err); }
+      }
+
+      function renderActivityLogs() {
+        const filter = (document.getElementById("logFilter")?.value || "").toLowerCase();
+        const tbody = document.getElementById("logsTableBody");
+        if (!tbody) return;
+        
+        let html = '';
+        const filtered = activityLogs.filter(log => 
+          (log.user_email || "").toLowerCase().includes(filter) || 
+          (log.action_type || "").toLowerCase().includes(filter)
+        );
+
+        if (filtered.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-secondary)">No logs found</td></tr>';
+          return;
+        }
+
+        filtered.forEach(log => {
+          let dateStr = log.timestamp ? new Date(log.timestamp).toLocaleString() : '-';
+          html += `
+            <tr>
+              <td>${dateStr}</td>
+              <td style="color:#a5b4fc">${log.user_email || '-'}</td>
+              <td><span class="role-badge ${log.action_type === 'search' ? 'user' : 'admin'}">${log.action_type}</span></td>
+              <td>${log.food_name || '-'}</td>
+              <td style="color:#fca5a5">${log.calories || 0} kcal</td>
+              <td>${log.quantity || '-'}</td>
+            </tr>
+          `;
+        });
+        tbody.innerHTML = html;
+      }
+
+      let chartInstances = {};
+      
+      function drawCharts(logs) {
+        if (!window.Chart) return;
+
+        // Action pie chart
+        const actionsCount = logs.reduce((acc, log) => {
+          acc[log.action_type] = (acc[log.action_type] || 0) + 1;
+          return acc;
+        }, {});
+
+        if(chartInstances.pie) chartInstances.pie.destroy();
+        const ctxPie = document.getElementById('actionPieChart');
+        if (ctxPie) {
+          chartInstances.pie = new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+              labels: Object.keys(actionsCount),
+              datasets: [{
+                data: Object.values(actionsCount),
+                backgroundColor: ['#a855f7', '#3b82f6', '#10b981', '#f59e0b']
+              }]
+            },
+            options: { plugins: { legend: { position: 'bottom', labels: { color: '#fff' } } } }
+          });
+        }
+
+        // Top 5 foods
+        const foodCount = logs.filter(l => l.food_name).reduce((acc, log) => {
+          acc[log.food_name] = (acc[log.food_name] || 0) + 1;
+          return acc;
+        }, {});
+        const topFoods = Object.entries(foodCount).sort((a,b) => b[1] - a[1]).slice(0, 5);
+
+        if(chartInstances.bar) chartInstances.bar.destroy();
+        const ctxBar = document.getElementById('topFoodsBarChart');
+        if (ctxBar) {
+          chartInstances.bar = new Chart(ctxBar, {
+            type: 'bar',
+            data: {
+              labels: topFoods.map(f => f[0]),
+              datasets: [{
+                label: 'Interactions',
+                data: topFoods.map(f => f[1]),
+                backgroundColor: 'rgba(59, 130, 246, 0.8)'
+              }]
+            },
+            options: { scales: { y: { beginAtZero: true, ticks: { color: '#fff', stepSize: 1 } }, x: { ticks: { color: '#fff' } } }, plugins: { legend: { display: false } } }
+          });
+        }
+        
+        // Activity line chart
+        const dayCounts = {};
+        for(let i=6; i>=0; i--) {
+            let d = new Date(); d.setDate(d.getDate() - i);
+            dayCounts[d.toLocaleDateString()] = 0;
+        }
+        logs.forEach(l => {
+            if(!l.timestamp) return;
+            let dString = new Date(l.timestamp).toLocaleDateString();
+            if (dayCounts[dString] !== undefined) dayCounts[dString]++;
+        });
+
+        if(chartInstances.line) chartInstances.line.destroy();
+        const ctxLine = document.getElementById('activityLineChart');
+        if (ctxLine) {
+          chartInstances.line = new Chart(ctxLine, {
+            type: 'line',
+            data: {
+              labels: Object.keys(dayCounts),
+              datasets: [{
+                label: 'Actions per Day',
+                data: Object.values(dayCounts),
+                borderColor: '#10b981',
+                tension: 0.3,
+                fill: true,
+                backgroundColor: 'rgba(16, 185, 129, 0.1)'
+              }]
+            },
+            options: { scales: { y: { beginAtZero: true, ticks: { color: '#fff', stepSize: 1 } }, x: { ticks: { color: '#fff' } } }, plugins: { legend: { display: false } } }
+          });
+        }
       }
 
     </script>

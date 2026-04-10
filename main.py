@@ -65,6 +65,7 @@ CORS(app)
 # Database initialization
 DB_USERS_PATH = os.path.join(os.path.dirname(__file__), 'data', 'users.json')
 DB_FOODS_PATH = os.path.join(os.path.dirname(__file__), 'data', 'foods.json')
+DB_LOGS_PATH = os.path.join(os.path.dirname(__file__), 'data', 'activity_logs.json')
 
 def load_json_db(path):
     if not os.path.exists(path):
@@ -85,6 +86,8 @@ def init_db():
         save_json_db(DB_USERS_PATH, [])
     if not os.path.exists(DB_FOODS_PATH):
         save_json_db(DB_FOODS_PATH, [])
+    if not os.path.exists(DB_LOGS_PATH):
+        save_json_db(DB_LOGS_PATH, [])
 
 init_db()
 
@@ -530,6 +533,11 @@ def login():
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user.get('role', 'user')
+            session['email'] = user.get('email', '')
+            
+            from datetime import datetime
+            user['last_active'] = datetime.utcnow().isoformat()
+            save_json_db(DB_USERS_PATH, users)
             
             role = session['role']
             redirect_url = url_for("admin_dashboard") if role == "admin" else url_for("user_dashboard")
@@ -575,12 +583,17 @@ def signup():
         role = "admin" if email == "admin@example.com" else "user"
         new_id = max([u.get('id', 0) for u in users] + [0]) + 1
         
+        from datetime import datetime
+        now_iso = datetime.utcnow().isoformat()
+        
         users.append({
             "id": new_id,
             "username": username,
             "email": email,
             "password": hashed_password,
-            "role": role
+            "role": role,
+            "created_at": now_iso,
+            "last_active": now_iso
         })
         save_json_db(DB_USERS_PATH, users)
         
@@ -627,6 +640,51 @@ def health():
 def foods():
     return {"foods": FOOD_CLASSES}
 
+@app.route('/api/log_activity', methods=['POST'])
+def log_activity():
+    if 'user_id' not in session:
+        return jsonify({"success": False, "error": "Not logged in"}), 401
+    
+    data = request.get_json()
+    action_type = data.get('action_type', 'unknown')
+    food_name = data.get('food_name', '')
+    quantity = data.get('quantity', '')
+    calories = data.get('calories', 0)
+    
+    # Resolve email
+    email = session.get('email')
+    users = load_json_db(DB_USERS_PATH)
+    user = next((u for u in users if u.get('id') == session['user_id']), None)
+    if user:
+        if not email:
+            email = user.get('email')
+            session['email'] = email
+            
+        from datetime import datetime
+        now_iso = datetime.utcnow().isoformat()
+        user['last_active'] = now_iso
+        save_json_db(DB_USERS_PATH, users)
+    else:
+        email = "Unknown"
+        from datetime import datetime
+        now_iso = datetime.utcnow().isoformat()
+
+    logs = load_json_db(DB_LOGS_PATH)
+    new_log = {
+        "id": max([l.get('id', 0) for l in logs] + [0]) + 1,
+        "user_email": email,
+        "action_type": action_type,
+        "food_name": food_name,
+        "quantity": quantity,
+        "calories": calories,
+        "timestamp": now_iso
+    }
+    
+    logs.append(new_log)
+    save_json_db(DB_LOGS_PATH, logs)
+    
+    return jsonify({"success": True})
+
 # === Admin API Routes ===
 def admin_required(f):
     @wraps(f)
@@ -642,18 +700,47 @@ def admin_required(f):
 def admin_stats():
     users = load_json_db(DB_USERS_PATH)
     foods = load_json_db(DB_FOODS_PATH)
+    logs = load_json_db(DB_LOGS_PATH)
     
     total_users = len(users)
     total_foods = len(foods)
     admin_count = sum(1 for u in users if u.get('role') == 'admin')
     user_count = sum(1 for u in users if u.get('role') == 'user')
+    total_searches = sum(1 for l in logs if l.get('action_type') == 'search')
+    
+    # Active Users Today
+    from datetime import datetime
+    active_today = 0
+    today = datetime.utcnow().date()
+    for u in users:
+        la = u.get('last_active')
+        if la:
+            try:
+                if datetime.fromisoformat(la).date() == today:
+                    active_today += 1
+            except:
+                pass
+                
+    # Most searched food
+    from collections import Counter
+    searched_foods = [l.get('food_name') for l in logs if l.get('action_type') == 'search' and l.get('food_name')]
+    most_searched = Counter(searched_foods).most_common(1)[0][0] if searched_foods else "None"
     
     return jsonify({
         "totalUsers": total_users,
         "totalFoods": total_foods,
         "adminUsers": admin_count,
-        "regularUsers": user_count
+        "regularUsers": user_count,
+        "totalSearches": total_searches,
+        "activeToday": active_today,
+        "mostSearched": most_searched
     })
+
+@app.route("/admin/activity_logs")
+@admin_required
+def admin_activity_logs():
+    logs = load_json_db(DB_LOGS_PATH)
+    return jsonify({"logs": sorted(logs, key=lambda x: x.get('timestamp', ''), reverse=True)})
 
 @app.route("/admin/get_foods")
 @admin_required
@@ -664,9 +751,8 @@ def get_foods_api():
 @app.route("/admin-dashboard")
 @admin_required
 def admin_dashboard():
-    users = load_json_db(DB_USERS_PATH)
-    foods = load_json_db(DB_FOODS_PATH)
-    return render_template('admin.html', users_count=len(users), foods_count=len(foods), users=users, foods=foods)
+    # Render previously separated admin-dashboard UI directly
+    return render_template('admin-dashboard.html')
 
 @app.route("/admin/users")
 @admin_required

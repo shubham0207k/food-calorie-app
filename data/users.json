@@ -4,7 +4,8 @@
         "username": "admin",
         "email": "admin345@gmail.com",
         "password": "scrypt:32768:8:1$K0XO9eoSUtXspz25$503040a42bd1c2de00c04d83f3c095f34132e75358b54fd28d08b5e6caa90c0a09084eabee8f4f86b8322638132be51b9b13904390bc7243a3bdcd3b8420983c",
-        "role": "user"
+        "role": "admin",
+        "last_active": "2026-04-10T22:24:25.324512"
     },
     {
         "id": 2,
@@ -12,5 +13,23 @@
         "email": "shubh234@gmail.com",
         "password": "scrypt:32768:8:1$K0XO9eoSUtXspz25$503040a42bd1c2de00c04d83f3c095f34132e75358b54fd28d08b5e6caa90c0a09084eabee8f4f86b8322638132be51b9b13904390bc7243a3bdcd3b8420983c",
         "role": "user"
+    },
+    {
+        "id": 3,
+        "username": "shubh",
+        "email": "shubh65@gmail.com",
+        "password": "scrypt:32768:8:1$SyWsHdz2I8hFLM9p$754b10d54dedbc6f885021308937900bb5908681d726add1b017fcbf0889cecadd08b36a7fc57f3a2c9f725957efcb1a27716ae6c14831b6f081137c79e44677",
+        "role": "user",
+        "created_at": "2026-04-10T22:22:06.521066",
+        "last_active": "2026-04-10T22:22:06.521066"
+    },
+    {
+        "id": 4,
+        "username": "ui",
+        "email": "s234@gmail.com",
+        "password": "scrypt:32768:8:1$X65VHxDC1us7FTxG$909e455d59bf678c0a3dee1667af3b61b85ea4bf667bc3452444f4b533d4b359f4e3f6fe9dd65bfd5bef4fa495f2bfefd199c44def4e79638db02756aebf3cd8",
+        "role": "user",
+        "created_at": "2026-04-10T22:23:27.354885",
+        "last_active": "2026-04-10T22:24:18.312479"
     }
 ]
