@@ -1,155 +1,216 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Signup - Food Calorie Predictor</title>
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
-  </head>
-  <body>
-    <div class="auth-container">
-      <div class="auth-header">
-        <h1>Create Account</h1>
-        <p>Join the Food Calorie Predictor platform.</p>
-      </div>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-      {% with messages = get_flashed_messages(with_categories=true) %} {% if
-      messages %}
-      <div class="flash-messages">
-        {% for category, message in messages %}
-        <div class="flash {{ category }}">{{ message }}</div>
-        {% endfor %}
-      </div>
-      {% endif %} {% endwith %}
+<title>Food AI Signup</title>
 
-      <form id="signupForm">
-        <div class="form-group">
-          <label for="username">Username</label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            placeholder="Choose a username"
-            required
-          />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="{{ url_for('static', filename='auth.css') }}">
+</head>
+
+<body>
+
+<div class="cursor-glow"></div>
+
+<div class="bg-glow glow1"></div>
+<div class="bg-glow glow2"></div>
+<div class="bg-glow glow3"></div>
+
+<div class="container">
+
+    <!-- LEFT -->
+    <div class="left-panel">
+
+        <div class="logo">
+            <div class="logo-circle">⚡</div>
+            <h2>Food <span>AI</span></h2>
         </div>
 
-        <div class="form-group">
-          <label for="email">Email Address</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            placeholder="Enter your email address"
-            required
-          />
+        <div class="tag">
+            AI POWERED NUTRITION ANALYSIS
         </div>
 
-        <div class="form-group">
-          <label for="password">Password</label>
-          <div style="position: relative; display: flex; align-items: center">
-            <input
-              type="password"
-              id="password"
-              name="password"
-              placeholder="Choose a strong password"
-              required
-              minlength="6"
-              style="width: 100%; padding-right: 40px"
-            />
-            <button
-              type="button"
-              id="togglePasswordBtn"
-              style="
-                position: absolute;
-                right: 12px;
-                background: none;
-                border: none;
-                cursor: pointer;
-                color: #94a3b8;
-                font-size: 1.1rem;
-                padding: 0;
-              "
-            >
-              <span id="toggleIcon">👁️</span>
-            </button>
-          </div>
-        </div>
+        <h1 class="main-heading">
+            Smart Food.<br>
+            <span class="gradient-text">Smarter You.</span>
+        </h1>
 
-        <button type="submit" class="btn-primary">Create Account</button>
-      </form>
+        <p class="description">
+            Upload your meals and let AI predict calories,
+            nutrition, and health insights instantly.
+        </p>
 
-      <div class="auth-footer">
-        Already have an account? <a href="{{ url_for('login') }}">Login</a
-        ><br />
-        <small style="display: block; margin-top: 10px; color: #94a3b8">
-          💡 Tip: Use email
-          <code
-            style="
-              background: rgba(0, 0, 0, 0.3);
-              padding: 2px 6px;
-              border-radius: 3px;
-            "
-            >admin@example.com</code
-          >
-          to create an admin account
-        </small>
-      </div>
+        <div class="food">🍎</div>
+
     </div>
 
-    <script>
-      const togglePasswordBtn = document.getElementById("togglePasswordBtn");
-      const passwordInput = document.getElementById("password");
-      const toggleIcon = document.getElementById("toggleIcon");
+    <!-- RIGHT -->
+    <div class="right-panel">
 
-      togglePasswordBtn.addEventListener("click", function () {
-        const type =
-          passwordInput.getAttribute("type") === "password"
-            ? "text"
-            : "password";
-        passwordInput.setAttribute("type", type);
-        // Toggle the eye icon vertically to communicate state (or swap emoji)
-        toggleIcon.textContent = type === "password" ? "👁️" : "🙈";
-      });
+        <div class="login-card">
 
-      const form = document.getElementById("signupForm");
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const username = document.getElementById("username").value;
-        const email = document.getElementById("email").value;
-        const password = document.getElementById("password").value;
+            <h1 class="gradient-text">Get Started</h1>
 
-        try {
-          const res = await fetch("{{ url_for('signup') }}", {
+            <p class="typing-text">
+                Create your AI nutrition account...
+            </p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %} 
+            {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %} 
+            {% endwith %}
+
+            <form id="signupForm">
+                <div class="input-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" placeholder="Choose a username" required>
+                </div>
+
+                <div class="input-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email address" required>
+                </div>
+
+                <div class="input-group password-group">
+                    <label for="password">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="password" name="password" placeholder="Choose a strong password" required minlength="6">
+                        <button type="button" class="toggle-password-btn" aria-label="Toggle password visibility">
+                            <svg viewBox="0 0 24 24" class="eye-icon">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="input-group password-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="confirmPassword" name="confirm_password" placeholder="Confirm your password" required minlength="6">
+                        <button type="button" class="toggle-password-btn" aria-label="Toggle password visibility">
+                            <svg viewBox="0 0 24 24" class="eye-icon">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="login-btn">
+                    Create Account
+                </button>
+            </form>
+
+            <div class="footer-text">
+                Already have an account?
+                <a href="{{ url_for('login') }}">Login</a>
+            </div>
+
+            <div class="footer-text" style="font-size: 13px; margin-top: 15px;">
+                💡 Tip: Use email <code style="color:cyan; background:rgba(0,255,255,0.1); padding:2px 6px; border-radius:4px;">admin@example.com</code> to create an admin account
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+const glow = document.querySelector('.cursor-glow');
+
+document.addEventListener('mousemove', e => {
+    glow.style.left = e.clientX + 'px';
+    glow.style.top = e.clientY + 'px';
+});
+
+// Password visibility toggle logic
+document.querySelectorAll('.toggle-password-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const input = btn.previousElementSibling;
+        const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+        input.setAttribute('type', type);
+        
+        if (type === 'password') {
+            btn.innerHTML = `
+                <svg viewBox="0 0 24 24" class="eye-icon">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            `;
+        } else {
+            btn.innerHTML = `
+                <svg viewBox="0 0 24 24" class="eye-icon">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+            `;
+        }
+    });
+});
+
+const form = document.getElementById("signupForm");
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const username = document.getElementById("username").value;
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const confirmPassword = document.getElementById("confirmPassword").value;
+
+    if (password !== confirmPassword) {
+        showError("Passwords do not match");
+        return;
+    }
+
+    try {
+        const res = await fetch("{{ url_for('signup') }}", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, email, password }),
-          });
-          const data = await res.json();
+        });
+        const data = await res.json();
 
-          if (data.success) {
-            alert(data.message);
-            window.location.href = data.redirect;
-          } else {
+        if (data.success) {
+            let msgContainer = document.querySelector(".flash-messages");
+            if (!msgContainer) {
+                msgContainer = document.createElement("div");
+                msgContainer.className = "flash-messages";
+                form.parentNode.insertBefore(msgContainer, form);
+            }
+            msgContainer.innerHTML = `<div class="flash success">${data.message}</div>`;
+            setTimeout(() => {
+                window.location.href = data.redirect;
+            }, 1500);
+        } else {
             showError(data.error || "Signup failed");
-          }
-        } catch (err) {
-          showError("An error occurred during signup");
         }
-      });
+    } catch (err) {
+        showError("An error occurred during signup");
+    }
+});
 
-      function showError(msg) {
-        let msgContainer = document.querySelector(".flash-messages");
-        if (!msgContainer) {
-          msgContainer = document.createElement("div");
-          msgContainer.className = "flash-messages";
-          form.parentNode.insertBefore(msgContainer, form);
-        }
-        msgContainer.innerHTML = `<div class="flash error">${msg}</div>`;
-      }
-    </script>
-  </body>
+function showError(msg) {
+    let msgContainer = document.querySelector(".flash-messages");
+    if (!msgContainer) {
+        msgContainer = document.createElement("div");
+        msgContainer.className = "flash-messages";
+        form.parentNode.insertBefore(msgContainer, form);
+    }
+    msgContainer.innerHTML = `<div class="flash error">${msg}</div>`;
+}
+
+</script>
+
+</body>
 </html>
