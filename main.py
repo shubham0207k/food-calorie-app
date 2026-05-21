@@ -223,10 +223,10 @@ import io
 
 # ===== AI PREDICTION FINAL FIX =====
 
-import torch
-import torch.nn.functional as F
-from torchvision import transforms
-from PIL import Image
+#mport torch
+#mport torch.nn.functional as F
+#rom torchvision import transforms
+#rom PIL import Image
 
 def predict_food(image_data):
     """
