@@ -5,7 +5,7 @@
         "email": "admin345@gmail.com",
         "password": "scrypt:32768:8:1$K0XO9eoSUtXspz25$503040a42bd1c2de00c04d83f3c095f34132e75358b54fd28d08b5e6caa90c0a09084eabee8f4f86b8322638132be51b9b13904390bc7243a3bdcd3b8420983c",
         "role": "admin",
-        "last_active": "2026-04-10T22:24:25.324512"
+        "last_active": "2026-05-09T11:44:12.807624"
     },
     {
         "id": 2,
@@ -21,15 +21,25 @@
         "password": "scrypt:32768:8:1$SyWsHdz2I8hFLM9p$754b10d54dedbc6f885021308937900bb5908681d726add1b017fcbf0889cecadd08b36a7fc57f3a2c9f725957efcb1a27716ae6c14831b6f081137c79e44677",
         "role": "user",
         "created_at": "2026-04-10T22:22:06.521066",
-        "last_active": "2026-04-10T22:22:06.521066"
+        "last_active": "2026-04-10T22:22:06.521066",
+        "banned": true
     },
     {
         "id": 4,
-        "username": "ui",
-        "email": "s234@gmail.com",
-        "password": "scrypt:32768:8:1$X65VHxDC1us7FTxG$909e455d59bf678c0a3dee1667af3b61b85ea4bf667bc3452444f4b533d4b359f4e3f6fe9dd65bfd5bef4fa495f2bfefd199c44def4e79638db02756aebf3cd8",
+        "username": "gvgjh",
+        "email": "jhjjh878@gmail.com",
+        "password": "scrypt:32768:8:1$lu8VxbblUNQa4rme$0df6863ba95707977446286897299205cdcc60c16056027e5a94723c1b98bd7b8bcba1d454cb5612424118bc66cb887c458654f0efd006d2a6cb99c07b722e09",
         "role": "user",
-        "created_at": "2026-04-10T22:23:27.354885",
-        "last_active": "2026-04-10T22:24:18.312479"
+        "created_at": "2026-05-09T11:50:23.715748",
+        "last_active": "2026-05-09T11:50:23.715748"
+    },
+    {
+        "id": 5,
+        "username": "mcn,c",
+        "email": "897@gmail.com",
+        "password": "scrypt:32768:8:1$ZgMjhD3SIfeMspy9$fba1304275a5e6754663b1421c99f9ecb69ab0cd3f9d4d0c42e6da7b1dc450a7178477e0ef1f9fbbc01e274b5ac2fa6687c0ff8127d35a5d1c8888db27ac9773",
+        "role": "user",
+        "created_at": "2026-05-09T11:51:09.604767",
+        "last_active": "2026-05-09T11:59:54.103012"
     }
 ]

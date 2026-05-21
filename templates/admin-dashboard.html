@@ -1,528 +1,469 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin Dashboard - Food Calorie Predictor</title>
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
-    <script src="{{ url_for('static', filename='auth-guard.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 24px;
-        margin-top: 24px;
-      }
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Admin Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='auth-guard.js') }}"></script>
 
-      .stat-card {
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        border-radius: var(--border-radius);
-        padding: 24px;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        transition: var(--transition);
-        backdrop-filter: blur(16px);
-      }
+<style>
+/* Base user CSS */
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+    background:#060816;
+    font-family:'Poppins',sans-serif;
+    color:white;
+    overflow-x:hidden;
+}
 
-      .stat-card:hover {
-        border-color: rgba(168, 85, 247, 0.4);
-        box-shadow: var(--glow-shadow);
-        transform: translateY(-4px);
-      }
+/* GRID BACKGROUND & GLOW */
+body::before{
+    content:'';
+    position:fixed;
+    width:100%;
+    height:100%;
+    background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size:40px 40px;
+    z-index:-5;
+}
+.bg-glow{
+    position:fixed;
+    border-radius:50%;
+    filter:blur(100px);
+    opacity:0.25;
+    z-index:-4;
+    animation:float 8s infinite ease-in-out;
+}
+.glow1{width:300px;height:300px;background:#7d5fff;top:5%;left:5%;}
+.glow2{width:250px;height:250px;background:cyan;bottom:10%;right:5%;}
+@keyframes float{0%{transform:translateY(0px);}50%{transform:translateY(-20px);}100%{transform:translateY(0px);}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 
-      .stat-icon {
-        font-size: 32px;
-      }
+/* LAYOUT */
+.dashboard{display:flex;min-height:100vh;}
+.sidebar{
+    width:260px;background:rgba(255,255,255,0.03);backdrop-filter:blur(18px);
+    border-right:1px solid rgba(255,255,255,0.08);padding:30px 20px;
+    position:fixed;height:100vh;z-index: 100;
+}
+.logo{margin-bottom:50px;}
+.logo h2{font-family:'Orbitron',sans-serif;font-size:28px;}
+.logo span{color:cyan;}
 
-      .stat-info {
-        flex: 1;
-      }
+.nav{display:flex;flex-direction:column;gap:15px;}
+.nav-item{
+    padding:15px 20px;border-radius:15px;cursor:pointer;
+    transition:0.3s;color:#ccc;
+}
+.nav-item:hover{background:rgba(255,255,255,0.05);transform:translateX(5px);}
+.nav-item.active{background:linear-gradient(45deg,#7d5fff,cyan);color:white;box-shadow:0 0 25px rgba(0,255,255,0.25);}
 
-      .stat-label {
-        font-size: 13px;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 4px;
-      }
+.main{margin-left:260px;width:calc(100% - 260px);padding:30px;}
 
-      .stat-value {
-        font-size: 28px;
-        font-weight: 700;
-        color: #fff;
-      }
+/* TOPBAR */
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;}
+.topbar h1{font-size:34px;}
+.topbar p{color:#aaa;}
+.top-right{display:flex;align-items:center;gap:20px;}
+.search{
+    background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+    padding:12px 18px;border-radius:12px;color:white;outline:none;
+}
+.ai-status{
+    display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);
+    padding:12px 18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);
+}
+.status-dot{
+    width:10px;height:10px;background:#00ff99;border-radius:50%;
+    box-shadow:0 0 10px #00ff99;animation:pulse 1.5s infinite;
+}
+@keyframes pulse{0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}}
 
-      .status-list {
-        background: rgba(9, 9, 11, 0.4);
-        border-radius: var(--border-radius);
-        padding: 24px;
-      }
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:25px;margin-bottom:35px;}
+.stat-card{
+    background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+    backdrop-filter:blur(15px);border-radius:22px;padding:25px;transition:0.3s;
+}
+.stat-card:hover{transform:translateY(-8px);box-shadow:0 0 30px rgba(0,255,255,0.12);}
+.stat-card h3{color:#aaa;margin-bottom:15px;font-size:15px;}
+.stat-card .number{font-size:42px;font-weight:700;margin-bottom:10px;}
+.growth{color:#00ff99;font-size:14px;}
 
-      .status-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px 0;
-        border-bottom: 1px solid var(--card-border);
-      }
+/* CHARTS & INSIGHTS */
+.chart-section{display:grid;grid-template-columns:2fr 1fr;gap:25px;margin-bottom:35px;}
+.chart-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:22px;padding:25px;}
+.bottom-section{display:grid;grid-template-columns:1fr 1fr;gap:25px;}
+.insights, .activity, .section{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:22px;padding:25px;}
+.section-title{font-size:24px;margin-bottom:20px;}
+.insight-item, .activity-item{
+    padding:15px;margin-bottom:15px;border-radius:14px;background:rgba(255,255,255,0.03);color:#ccc;transition:0.3s;
+}
+.insight-item:hover, .activity-item:hover{background:rgba(255,255,255,0.06);transform:translateX(5px);}
 
-      .status-item:last-child {
-        border-bottom: none;
-      }
+/* TAB SYSTEM */
+.tab-content { display: none; animation: fadeUp 0.4s ease; }
+.tab-content.active { display: block; }
 
-      .status-badge {
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-      }
+/* DATA TABLES */
+.data-table-wrapper {
+    background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);
+    border-radius:16px;padding:15px;overflow-x: auto;margin-top: 20px;
+}
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th { text-align: left; padding: 15px; color: #aaa; border-bottom: 1px solid rgba(255,255,255,0.08); font-weight: 500; font-size:14px; }
+.data-table td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size:14px; }
+.data-table tr:hover td { background: rgba(255,255,255,0.02); }
+tr.banned-row { opacity: 0.5; border-left: 4px solid #ef4444 !important; }
 
-      .status-badge.online {
-        background: rgba(16, 185, 129, 0.2);
-        color: var(--success-color);
-      }
+/* BADGES & BUTTONS */
+.role-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+.role-badge.admin { background: rgba(125,95,255,0.2); color: #7d5fff; border: 1px solid rgba(125,95,255,0.3); }
+.role-badge.user { background: rgba(0,255,255,0.2); color: cyan; border: 1px solid rgba(0,255,255,0.3); }
+.status-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+.status-badge.online { color: #00ff99; background: rgba(0,255,153,0.1); }
+.badge-purple { background: rgba(125,95,255,0.2); color: #c084fc; border: 1px solid rgba(125,95,255,0.3); padding: 4px 10px; border-radius: 12px; font-size: 12px; }
 
-      .form-section {
-        background: rgba(9, 9, 11, 0.4);
-        border-radius: var(--border-radius);
-        padding: 24px;
-        margin-bottom: 32px;
-        border: 1px solid var(--card-border);
-      }
+.action-buttons { display: flex; gap: 8px; }
+.btn-icon {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: white; padding: 8px; border-radius: 8px; cursor: pointer; transition: 0.3s;
+}
+.btn-icon:hover { background: rgba(255,255,255,0.15); }
+.btn-icon.danger:hover { background: #ef4444; color: white; border-color:#ef4444; }
 
-      .form-section h3 {
-        margin: 0 0 24px 0;
-        color: var(--text-primary);
-        font-size: 18px;
-      }
+.btn-primary {
+    background: linear-gradient(45deg,#7d5fff,cyan); color: white; border: none;
+    padding: 12px 20px; border-radius: 12px; cursor: pointer; transition: 0.3s; font-weight: 600;
+}
+.btn-primary:hover { box-shadow:0 0 20px rgba(0,255,255,0.3); transform: translateY(-2px); }
+.btn-secondary {
+    background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1);
+    padding: 10px 18px; border-radius: 12px; cursor: pointer; transition:0.3s;
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.1); }
+.btn-danger {
+    background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3);
+    padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; transition: 0.3s;
+}
+.btn-danger:hover { background: #ef4444; color: white; }
 
-      .search-container {
-        margin-bottom: 24px;
-      }
+/* FORMS */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { margin-bottom: 20px; flex: 1; }
+.form-group label { display: block; margin-bottom: 8px; color: #ccc; font-size:13px; }
+.form-control {
+    width: 100%; padding: 12px 15px; background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; color: white; outline: none; font-family:'Poppins', sans-serif;
+}
+.form-control:focus { border-color: cyan; }
 
-      .search-container input {
-        width: 100%;
-        padding: 14px 16px;
-        background: var(--input-bg);
-        border: 1px solid var(--card-border);
-        border-radius: 12px;
-        color: var(--text-primary);
-        font-size: 14px;
-        transition: var(--transition);
-      }
+/* MODALS */
+.modal-overlay {
+    position: fixed; top:0; left:0; right:0; bottom:0;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; opacity: 0; pointer-events: none; transition: 0.3s;
+}
+.modal-overlay.active { opacity: 1; pointer-events: all; }
+.modal-content {
+    background: #060816; border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px; padding: 30px; width: 90%; max-width: 450px;
+    transform: translateY(20px); transition: 0.3s; box-shadow: 0 0 40px rgba(125,95,255,0.2);
+}
+.modal-overlay.active .modal-content { transform: translateY(0); }
+.modal-header { font-size: 20px; font-weight: 600; margin-bottom: 20px; color: white; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
 
-      .search-container input:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.2);
-      }
+/* TOASTS */
+.toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 2000; }
+.toast {
+    background: rgba(17,25,40,0.9); border-left: 4px solid cyan; border-radius: 12px;
+    padding: 15px 20px; color: white; transform: translateX(120%);
+    transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); backdrop-filter: blur(10px); display:flex; align-items:center; gap:10px;
+}
+.toast.show { transform: translateX(0); }
+.toast.success { border-left-color: #00ff99; }
+.toast.error { border-left-color: #ef4444; }
 
-      .role-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-      }
+@media(max-width:1100px){ .chart-section, .bottom-section{grid-template-columns:1fr;} }
+@media(max-width:900px){ .sidebar{display:none;} .main{margin-left:0;width:100%;} }
+</style>
+</head>
 
-      .role-badge.admin {
-        background: rgba(168, 85, 247, 0.2);
-        color: #d8b4fe;
-        border: 1px solid rgba(168, 85, 247, 0.3);
-      }
+<body>
+<script>
+  if (!auth.requireAdmin(true)) {
+    throw new Error("Access denied");
+  }
+</script>
 
-      .role-badge.user {
-        background: rgba(79, 70, 229, 0.2);
-        color: #a5b4fc;
-        border: 1px solid rgba(79, 70, 229, 0.3);
-      }
+<div class="bg-glow glow1"></div>
+<div class="bg-glow glow2"></div>
 
-    </style>
-  </head>
-  <body>
-    <script>
-      // Protect this page - only admins can access
-      if (!auth.requireAdmin(true)) {
-        throw new Error("Access denied");
-      }
-    </script>
+<div class="dashboard">
 
-    <div class="admin-container">
-      <!-- Header -->
-      <header class="dashboard-header">
-        <div class="header-content">
-          <div>
-            <h1>🔐 Admin Control Panel</h1>
-            <p>Manage users and food database.</p>
-          </div>
-          <button onclick="auth.logout()" class="btn-secondary">Logout</button>
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="logo"><h2>Food <span>AI</span></h2></div>
+        <div class="nav">
+            <div class="nav-item active" onclick="switchTab(this, 'overview')">📊 Dashboard</div>
+            <div class="nav-item" onclick="switchTab(this, 'users')">👥 Users</div>
+            <div class="nav-item" onclick="switchTab(this, 'foods')">🍔 Food Database</div>
+            <div class="nav-item" onclick="switchTab(this, 'tracker')">🍱 Calorie Tracker</div>
+            <div class="nav-item" onclick="switchTab(this, 'logs')">📝 Activity Logs</div>
+            <div class="nav-item" onclick="switchTab(this, 'audit')">🛡️ Audit Logs</div>
+            <div class="nav-item" onclick="auth.logout()" style="color:#ef4444; margin-top:30px;">🚪 Logout</div>
         </div>
-      </header>
-
-      <!-- Admin Dashboard Navigation -->
-      <nav class="admin-nav">
-        <button class="nav-btn active" onclick="switchTab(this, 'overview')">
-          📊 Overview
-        </button>
-        <button class="nav-btn" onclick="switchTab(this, 'users')">
-          👥 Manage Users
-        </button>
-        <button class="nav-btn" onclick="switchTab(this, 'foods')">
-          🍽️ Manage Foods
-        </button>
-        <button class="nav-btn" onclick="switchTab(this, 'tracker')">
-          🍱 Calorie Tracker
-        </button>
-        <button class="nav-btn" onclick="switchTab(this, 'logs')">
-          📜 Activity Logs
-        </button>
-        <button class="nav-btn" onclick="switchTab(this, 'analytics')">
-          📈 Analytics
-        </button>
-      </nav>
-
-      <!-- Main Content -->
-      <main class="dashboard-content">
-        <!-- Overview Tab -->
-        <div id="overview-tab" class="tab-content active">
-          <div class="section">
-            <h2>System Overview</h2>
-            <p style="color: var(--text-secondary);">Key statistics and metrics</p>
-
-            <div class="stats-grid">
-              <div class="stat-card">
-                <div class="stat-icon">👥</div>
-                <div class="stat-info">
-                  <div class="stat-label">Total Users</div>
-                  <div class="stat-value" id="totalUsers">-</div>
-                </div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-icon">🍽️</div>
-                <div class="stat-info">
-                  <div class="stat-label">Food Items</div>
-                  <div class="stat-value" id="totalFoods">-</div>
-                </div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-icon">👤</div>
-                <div class="stat-info">
-                  <div class="stat-label">Regular Users</div>
-                  <div class="stat-value" id="regularUsers">-</div>
-                </div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-icon">🟢</div>
-                <div class="stat-info">
-                  <div class="stat-label">Active Users Today</div>
-                  <div class="stat-value" id="activeToday">-</div>
-                </div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-icon">🔍</div>
-                <div class="stat-info">
-                  <div class="stat-label">Total Searches</div>
-                  <div class="stat-value" id="totalSearches">-</div>
-                </div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-icon">🥇</div>
-                <div class="stat-info">
-                  <div class="stat-label">Most Searched</div>
-                  <div class="stat-value" id="mostSearched" style="font-size: 20px;">-</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="section" style="margin-top: 24px;">
-            <h2>System Status</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 24px;">Application health and status</p>
-
-            <div class="status-list">
-              <div class="status-item">
-                <span>✅ Backend API</span>
-                <span class="status-badge online">Online</span>
-              </div>
-              <div class="status-item">
-                <span>✅ Database</span>
-                <span class="status-badge online">Connected</span>
-              </div>
-              <div class="status-item">
-                <span>✅ AI Model</span>
-                <span class="status-badge online">Loaded</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Users Tab -->
-        <div id="users-tab" class="tab-content">
-          <div class="section">
-            <h2>User Management</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 24px;">View and manage all system users</p>
-
-            <div class="search-container">
-              <input
-                type="text"
-                id="userSearch"
-                placeholder="Search users by name or email..."
-                onkeyup="filterUsers()"
-              />
-            </div>
-
-            <div class="data-table-wrapper">
-              <table class="data-table" id="usersTable">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Joined</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody id="usersTableBody">
-                  <tr>
-                    <td colspan="6" style="text-align: center; color: var(--text-secondary)">
-                      Loading users...
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- Foods Tab -->
-        <div id="foods-tab" class="tab-content">
-          <div class="section">
-            <h2>Food Database Management</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 24px;">Add, edit, and delete food items</p>
-
-            <!-- Add Food Form -->
-            <div class="form-section">
-              <h3>Add New Food Item</h3>
-              <div class="form-container">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="foodName">Food Name *</label>
-                    <input
-                      type="text"
-                      id="foodName"
-                      placeholder="Enter food name"
-                      required
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label for="foodCalories">Calories *</label>
-                    <input
-                      type="number"
-                      id="foodCalories"
-                      placeholder="0"
-                      min="0"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="foodProtein">Protein (g)</label>
-                    <input type="number" id="foodProtein" placeholder="0" min="0" step="0.1" />
-                  </div>
-                  <div class="form-group">
-                    <label for="foodCarbs">Carbs (g)</label>
-                    <input type="number" id="foodCarbs" placeholder="0" min="0" step="0.1" />
-                  </div>
-                </div>
-                
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="foodFat">Fat (g)</label>
-                    <input type="number" id="foodFat" placeholder="0" min="0" step="0.1" />
-                  </div>
-                  <div class="form-group">
-                    <label for="foodServing">Serving Size *</label>
-                    <input type="text" id="foodServing" placeholder="e.g., 100g, 1 slice, 1 cup" required />
-                  </div>
-                </div>
-
-                <button onclick="addFood()" class="btn-primary" style="margin-top: 16px; width: 100%;">
-                  ➕ Add Food Item
-                </button>
-              </div>
-            </div>
-
-            <!-- Foods List -->
-            <div>
-              <h3>📋 Food Items</h3>
-              <div class="search-container">
-                <input
-                  type="text"
-                  id="foodSearch"
-                  placeholder="Search foods..."
-                  onkeyup="filterFoods()"
-                />
-              </div>
-
-              <div class="data-table-wrapper">
-                <table class="data-table" id="foodsTable">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Name</th>
-                      <th>Calories</th>
-                      <th>Protein</th>
-                      <th>Carbs</th>
-                      <th>Fat</th>
-                      <th>Serving</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="foodsTableBody">
-                    <tr>
-                      <td colspan="8" style="text-align: center; color: var(--text-secondary)">
-                        Loading foods...
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tracker Tab -->
-        <div id="tracker-tab" class="tab-content">
-          <div class="section">
-            <h2>Admin Calorie Tracker</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 24px;">
-              Calculate and log food calories with quantity and unit details.
-            </p>
-
-            <div class="form-section">
-              <div class="form-container">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="trackerFoodName">Food Name *</label>
-                    <input type="text" id="trackerFoodName" placeholder="e.g., Chicken Breast" />
-                  </div>
-                  <div class="form-group">
-                    <label for="trackerCaloriesPerUnit">Calories per Unit *</label>
-                    <input type="number" id="trackerCaloriesPerUnit" placeholder="0" min="0" />
-                  </div>
-                </div>
-                
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="trackerQuantity">Quantity *</label>
-                    <input type="number" id="trackerQuantity" placeholder="1" min="0" step="0.01" />
-                  </div>
-                  <div class="form-group">
-                    <label for="trackerUnit">Unit *</label>
-                    <select id="trackerUnit" onchange="toggleCustomUnit('trackerUnit', 'trackerUnitCustomWrapper')">
-                      <option value="grams">grams</option>
-                      <option value="ml">ml</option>
-                      <option value="pieces">pieces</option>
-                      <option value="slices">slices</option>
-                      <option value="servings">servings</option>
-                      <option value="custom">custom</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div class="form-group" id="trackerUnitCustomWrapper" style="display:none;">
-                  <label for="trackerUnitCustom">Custom Unit</label>
-                  <input type="text" id="trackerUnitCustom" placeholder="e.g., slice" />
-                </div>
-                
-                <div class="form-group" style="margin-top: 16px;">
-                  <label>Total Calories</label>
-                  <div id="trackerTotalCalories" style="font-size: 24px; font-weight: bold; color: var(--primary-color);">
-                    0
-                  </div>
-                </div>
-                
-                <div class="form-group" style="margin-top: 16px;">
-                  <button class="btn-primary" onclick="addAdminManualFood()">
-                    Add to Tracker History
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3>Tracker History</h3>
-              <div id="trackerHistoryContainer" style="margin-top: 16px;"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Activity Logs Tab -->
-        <div id="logs-tab" class="tab-content">
-          <div class="section">
-            <h2>User Activity Logs</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 24px;">Real-time stream of all user actions</p>
-            
-            <div class="search-container">
-              <input type="text" id="logFilter" placeholder="Filter by email or action type..." onkeyup="renderActivityLogs()" />
-            </div>
-
-            <div class="data-table-wrapper">
-              <table class="data-table" id="logsTable">
-                <thead>
-                  <tr>
-                    <th>Timestamp</th>
-                    <th>User Email</th>
-                    <th>Action Type</th>
-                    <th>Food Name</th>
-                    <th>Calories</th>
-                    <th>Quantity</th>
-                  </tr>
-                </thead>
-                <tbody id="logsTableBody">
-                  <tr><td colspan="6" style="text-align: center; color: var(--text-secondary)">Loading activity logs...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- Analytics Tab -->
-        <div id="analytics-tab" class="tab-content">
-          <div class="section">
-            <h2>System Analytics</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 24px;">Visualizations of activity data</p>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-              <div class="form-section">
-                <h3 style="text-align: center;">Action Types Distribution</h3>
-                <canvas id="actionPieChart" style="max-height: 300px;"></canvas>
-              </div>
-              <div class="form-section">
-                <h3 style="text-align: center;">Activity Trend (Last 7 Days)</h3>
-                <canvas id="activityLineChart" style="max-height: 300px;"></canvas>
-              </div>
-            </div>
-            <div class="form-section">
-               <h3 style="text-align: center;">Top 5 Logged Foods</h3>
-               <canvas id="topFoodsBarChart" style="max-height: 300px;"></canvas>
-            </div>
-          </div>
-        </div>
-      </main>
     </div>
 
-    <script>
+    <!-- MAIN -->
+    <div class="main">
+
+        <!-- TOPBAR -->
+        <div class="topbar">
+            <div>
+                <h1>Welcome Back, Admin</h1>
+                <p>AI nutrition system monitoring dashboard</p>
+            </div>
+            <div class="top-right">
+                <div class="ai-status">
+                    <div class="status-dot"></div>
+                    AI Engine Active
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: OVERVIEW -->
+        <div id="overview-tab" class="tab-content active">
+            <!-- STATS -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Users</h3>
+                    <div class="number" id="totalUsers">-</div>
+                    <div class="growth" style="color:cyan;">Registered accounts</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Active Today</h3>
+                    <div class="number" id="activeToday">-</div>
+                    <div class="growth">Online in last 24h</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Food Database</h3>
+                    <div class="number" id="totalFoods">-</div>
+                    <div class="growth" style="color:#7d5fff;">Available items</div>
+                </div>
+                <div class="stat-card">
+                    <h3>AI Predictions</h3>
+                    <div class="number" id="totalSearches">-</div>
+                    <div class="growth">Total queries made</div>
+                </div>
+            </div>
+
+            <!-- CHARTS -->
+            <div class="chart-section">
+                <div class="chart-card">
+                    <h2 class="section-title">Prediction Analytics</h2>
+                    <canvas id="lineChart" style="max-height: 300px;"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h2 class="section-title">Action Types</h2>
+                    <canvas id="pieChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+
+            <!-- BOTTOM -->
+            <div class="bottom-section">
+                <div class="chart-card">
+                    <h2 class="section-title">Top Searched Foods</h2>
+                    <canvas id="topFoodsBarChart" style="max-height: 300px;"></canvas>
+                </div>
+                <div class="activity">
+                    <h2 class="section-title">Recent Activity</h2>
+                    <div id="recentActivityList">
+                        <p style="color:#aaa;">Loading activity...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: USERS -->
+        <div id="users-tab" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">User Management</h2>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <input type="text" id="userSearch" class="form-control" placeholder="Search users by name or email..." onkeyup="filterUsers()" />
+                </div>
+                <div class="data-table-wrapper">
+                    <table class="data-table" id="usersTable">
+                        <thead>
+                            <tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Joined</th><th>Action</th></tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr><td colspan="6" style="text-align: center; color: #aaa;">Loading users...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: FOODS -->
+        <div id="foods-tab" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Food Database Management</h2>
+                <div class="form-group" style="margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 15px; font-size:18px;">Add New Food Item</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Food Name *</label><input type="text" id="foodName" class="form-control" placeholder="Enter food name" /></div>
+                        <div class="form-group"><label>Calories *</label><input type="number" id="foodCalories" class="form-control" placeholder="0" min="0" /></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Protein (g)</label><input type="number" id="foodProtein" class="form-control" placeholder="0" min="0" step="0.1" /></div>
+                        <div class="form-group"><label>Carbs (g)</label><input type="number" id="foodCarbs" class="form-control" placeholder="0" min="0" step="0.1" /></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Fat (g)</label><input type="number" id="foodFat" class="form-control" placeholder="0" min="0" step="0.1" /></div>
+                        <div class="form-group"><label>Serving Size *</label><input type="text" id="foodServing" class="form-control" placeholder="e.g., 100g, 1 slice" /></div>
+                    </div>
+                    <button onclick="addFood()" class="btn-primary" style="width: 100%;">➕ Add Food Item</button>
+                </div>
+
+                <div class="form-group" style="margin-top: 40px;">
+                    <h3 style="margin-bottom: 15px; font-size:18px;">📋 Food Items</h3>
+                    <input type="text" id="foodSearch" class="form-control" placeholder="Search foods..." onkeyup="filterFoods()" />
+                </div>
+                <div class="data-table-wrapper">
+                    <table class="data-table" id="foodsTable">
+                        <thead>
+                            <tr><th>ID</th><th>Name</th><th>Calories</th><th>Protein</th><th>Carbs</th><th>Fat</th><th>Serving</th><th>Action</th></tr>
+                        </thead>
+                        <tbody id="foodsTableBody">
+                            <tr><td colspan="8" style="text-align: center; color: #aaa;">Loading foods...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: TRACKER -->
+        <div id="tracker-tab" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Admin Calorie Tracker</h2>
+                <div class="form-row">
+                  <div class="form-group"><label>Food Name *</label><input type="text" id="trackerFoodName" class="form-control" /></div>
+                  <div class="form-group"><label>Calories per Unit *</label><input type="number" id="trackerCaloriesPerUnit" class="form-control" /></div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group"><label>Quantity *</label><input type="number" id="trackerQuantity" class="form-control" placeholder="1" /></div>
+                  <div class="form-group">
+                      <label>Unit *</label>
+                      <select id="trackerUnit" class="form-control" onchange="toggleCustomUnit('trackerUnit', 'trackerUnitCustomWrapper')">
+                          <option value="grams">grams</option><option value="ml">ml</option><option value="pieces">pieces</option>
+                          <option value="slices">slices</option><option value="servings">servings</option><option value="custom">custom</option>
+                      </select>
+                  </div>
+                </div>
+                <div class="form-group" id="trackerUnitCustomWrapper" style="display:none;">
+                  <label>Custom Unit</label><input type="text" id="trackerUnitCustom" class="form-control" />
+                </div>
+                <div class="form-group">
+                  <label>Total Calories: <span id="trackerTotalCalories" style="font-size: 24px; font-weight: bold; color: cyan;">0 kcal</span></label>
+                </div>
+                <button class="btn-primary" onclick="addAdminManualFood()">Add to Tracker</button>
+
+                <h3 style="margin-top: 40px; font-size:18px;">Tracker History</h3>
+                <div id="trackerHistoryContainer"></div>
+            </div>
+        </div>
+
+        <!-- TAB: LOGS -->
+        <div id="logs-tab" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">User Activity Logs</h2>
+                <input type="text" id="logFilter" class="form-control" placeholder="Filter by email or action type..." onkeyup="renderActivityLogs()" style="margin-bottom: 20px;"/>
+                <div class="data-table-wrapper">
+                    <table class="data-table" id="logsTable">
+                        <thead>
+                            <tr><th>Timestamp</th><th>User Email</th><th>Action Type</th><th>Food Name</th><th>Calories</th><th>Quantity</th></tr>
+                        </thead>
+                        <tbody id="logsTableBody">
+                            <tr><td colspan="6" style="text-align: center; color: #aaa;">Loading logs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: AUDIT -->
+        <div id="audit-tab" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">🛡️ Admin Audit Logs</h2>
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+                    <button class="btn-secondary" onclick="loadAuditLogs()">🔄 Refresh</button>
+                </div>
+                <div class="data-table-wrapper">
+                    <table class="data-table" id="auditTable">
+                        <thead>
+                            <tr><th>Timestamp</th><th>Action</th><th>Admin</th><th>Details</th></tr>
+                        </thead>
+                        <tbody id="auditTableBody">
+                            <tr><td colspan="4" style="text-align: center; color: #aaa;">Loading audit logs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- MODALS & TOASTS -->
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal-content">
+        <div class="modal-header" id="confirmTitle">Confirm Action</div>
+        <div style="color: #ccc; margin-bottom: 24px;" id="confirmMessage">Are you sure?</div>
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+            <button class="btn-primary" id="confirmBtn">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="editUserModal">
+    <div class="modal-content">
+        <div class="modal-header">Edit User</div>
+        <input type="hidden" id="editUserId" />
+        <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="editUsername" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="editUserEmail" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>New Password (Optional)</label>
+            <input type="password" id="editUserPassword" class="form-control" placeholder="Leave blank to keep current" />
+        </div>
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="closeEditUserModal()">Cancel</button>
+            <button class="btn-primary" onclick="submitEditUser()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<script>
+  if (!auth.requireAdmin(true)) {
+    throw new Error("Access denied");
+  }
+
       // Load data on page load
       document.addEventListener("DOMContentLoaded", function () {
         loadStats();
@@ -530,12 +471,13 @@
         loadFoods();
         loadTrackerHistory();
         loadActivityLogs();
+        loadAuditLogs();
       });
 
       // Tab switching
       function switchTab(btn, tabName) {
         document.querySelectorAll(".tab-content").forEach((tab) => tab.classList.remove("active"));
-        document.querySelectorAll(".nav-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".nav-item").forEach((b) => b.classList.remove("active"));
         document.getElementById(tabName + "-tab").classList.add("active");
         btn.classList.add("active");
         if (tabName === 'tracker') loadTrackerHistory();
@@ -543,6 +485,7 @@
             loadActivityLogs();
             loadStats();
         }
+        if (tabName === 'audit') loadAuditLogs();
       }
 
       // Load Statistics
@@ -553,15 +496,10 @@
             const data = await response.json();
             document.getElementById("totalUsers").textContent = data.totalUsers || 0;
             document.getElementById("totalFoods").textContent = data.totalFoods || 0;
-            document.getElementById("regularUsers").textContent = data.regularUsers || 0;
-            
-            // New metrics
             const elActive = document.getElementById("activeToday");
             if (elActive) elActive.textContent = data.activeToday || 0;
             const elSearches = document.getElementById("totalSearches");
             if (elSearches) elSearches.textContent = data.totalSearches || 0;
-            const elMostSearched = document.getElementById("mostSearched");
-            if (elMostSearched) elMostSearched.textContent = data.mostSearched || "-";
           } else {
             loadStatsFromLocal();
           }
@@ -572,21 +510,22 @@
 
       function loadStatsFromLocal() {
         try {
-          const users = JSON.parse(localStorage.getItem("allUsers") || "[]");
-          const foods = JSON.parse(localStorage.getItem("allFoods") || "[]");
-          const admins = users.filter((u) => u.role === "admin").length;
-          const regularUsers = users.filter((u) => u.role === "user").length;
+          let users = []; let foods = [];
+          try { users = JSON.parse(localStorage.getItem("allUsers") || "[]"); } catch(e){ users = []; }
+          try { foods = JSON.parse(localStorage.getItem("allFoods") || "[]"); } catch(e){ foods = []; }
           document.getElementById("totalUsers").textContent = users.length;
           document.getElementById("totalFoods").textContent = foods.length;
-          document.getElementById("regularUsers").textContent = regularUsers;
-          document.getElementById("adminUsers").textContent = admins;
-        } catch (err) { }
+          document.getElementById("activeToday").textContent = 0;
+          document.getElementById("totalSearches").textContent = 0;
+        } catch (err) { console.error(err); }
       }
 
       // Load Users
       async function loadUsers() {
         try {
-          const response = await fetch("/admin/users");
+          const response = await fetch("/admin/users", {
+            headers: { "Accept": "application/json" }
+          });
           if (response.ok) {
             const data = await response.json();
             displayUsers(data.users || []);
@@ -604,6 +543,36 @@
         displayUsers(users);
       }
 
+      // --- Toasts & Modals Helpers ---
+      function showToast(message, type = 'success') {
+          const container = document.getElementById('toastContainer');
+          const toast = document.createElement('div');
+          toast.className = `toast ${type}`;
+          toast.innerHTML = `${type === 'success' ? '✅' : '❌'} ${message}`;
+          container.appendChild(toast);
+          setTimeout(() => toast.classList.add('show'), 10);
+          setTimeout(() => {
+              toast.classList.remove('show');
+              setTimeout(() => toast.remove(), 300);
+          }, 4000);
+      }
+
+      let confirmCallback = null;
+      function showConfirm(message, callback) {
+          document.getElementById('confirmMessage').textContent = message;
+          confirmCallback = callback;
+          document.getElementById('confirmModal').classList.add('active');
+      }
+      function closeConfirmModal() {
+          document.getElementById('confirmModal').classList.remove('active');
+          confirmCallback = null;
+      }
+      document.getElementById('confirmBtn').addEventListener('click', () => {
+          if (confirmCallback) confirmCallback();
+          closeConfirmModal();
+      });
+
+      // --- Enhanced displayUsers ---
       function displayUsers(users) {
         const tbody = document.getElementById("usersTableBody");
         if (!users || users.length === 0) {
@@ -615,20 +584,127 @@
         users.forEach((user) => {
           const role = user.role || "user";
           const isCurrentUser = user.id == localStorage.getItem("user_id");
+          const isBanned = user.banned === true;
+          const statusBadge = isBanned ? '<span class="status-badge" style="color:var(--error-color);">Banned</span>' : '<span class="status-badge online">Active</span>';
+          
+          let actionsHtml = '<div class="action-buttons">';
+          if (isCurrentUser) {
+             actionsHtml += '<span style="color: #aaa; font-size: 13px; font-weight: 500;">Current Account</span>';
+          } else {
+             actionsHtml += `<button class="btn-icon" title="Edit User" onclick="openEditUserModal(${user.id}, '${user.username}', '${user.email}')">✏️</button>`;
+             if (role === 'user') {
+                 actionsHtml += `<button class="btn-icon" title="Promote to Admin" onclick="promoteUser(${user.id})">↑</button>`;
+             } else {
+                 actionsHtml += `<button class="btn-icon" title="Demote to User" onclick="demoteUser(${user.id})">↓</button>`;
+             }
+             if (isBanned) {
+                 actionsHtml += `<button class="btn-icon" title="Unban User" onclick="unbanUser(${user.id})">✅</button>`;
+             } else {
+                 actionsHtml += `<button class="btn-icon" title="Ban User" onclick="banUser(${user.id})">🚫</button>`;
+             }
+             actionsHtml += `<button class="btn-icon danger" title="Delete User" onclick="deleteUserAjax(${user.id})">🗑️</button>`;
+          }
+          actionsHtml += '</div>';
+
           html += `
-            <tr>
+            <tr class="${isBanned ? 'banned-row' : ''}">
               <td>#${user.id}</td>
               <td>${user.username || "N/A"}</td>
               <td>${user.email || "N/A"}</td>
-              <td><span class="role-badge ${role}">${role}</span></td>
-              <td>${user.joined || "N/A"}</td>
-              <td>
-                  ${!isCurrentUser ? \`<button onclick="deleteUser(\${user.id})" class="btn-danger">Delete</button>\` : '<span style="color: var(--text-secondary);">Current</span>'}
-              </td>
+              <td><span class="role-badge ${role}">${role}</span> ${statusBadge}</td>
+              <td>${user.last_active ? new Date(user.last_active).toLocaleDateString() : (user.joined || "N/A")}</td>
+              <td>${actionsHtml}</td>
             </tr>
           `;
         });
         tbody.innerHTML = html;
+      }
+
+      // --- Admin Action Functions ---
+      async function performAdminAction(url, method, payload = null) {
+          try {
+              const options = { method: method, headers: { "Content-Type": "application/json" } };
+              if (payload) options.body = JSON.stringify(payload);
+              const response = await fetch(url, options);
+              const data = await response.json();
+              if (response.ok && data.success) {
+                  showToast(data.message || "Action successful", 'success');
+                  loadUsers();
+                  loadStats();
+                  if (typeof loadAuditLogs === 'function') loadAuditLogs();
+              } else {
+                  showToast(data.error || "Action failed", 'error');
+              }
+          } catch (err) {
+              showToast("Network error occurred", 'error');
+          }
+      }
+
+      function banUser(id) { showConfirm("Ban this user? They will not be able to log in.", () => performAdminAction(`/admin/ban_user/${id}`, 'POST')); }
+      function unbanUser(id) { showConfirm("Unban this user? They will regain access.", () => performAdminAction(`/admin/unban_user/${id}`, 'POST')); }
+      function promoteUser(id) { showConfirm("Promote this user to Admin?", () => performAdminAction(`/admin/promote_user/${id}`, 'POST')); }
+      function demoteUser(id) { showConfirm("Demote this admin to a regular User?", () => performAdminAction(`/admin/demote_user/${id}`, 'POST')); }
+      function deleteUserAjax(id) { showConfirm("Permanently delete this user?", () => performAdminAction(`/admin/delete_user_ajax/${id}`, 'POST')); }
+      
+      // Edit User Logic
+      function openEditUserModal(id, username, email) {
+          document.getElementById('editUserId').value = id;
+          document.getElementById('editUsername').value = username;
+          document.getElementById('editUserEmail').value = email;
+          document.getElementById('editUserPassword').value = '';
+          document.getElementById('editUserModal').classList.add('active');
+      }
+      function closeEditUserModal() {
+          document.getElementById('editUserModal').classList.remove('active');
+      }
+      function submitEditUser() {
+          const id = document.getElementById('editUserId').value;
+          const username = document.getElementById('editUsername').value.trim();
+          const email = document.getElementById('editUserEmail').value.trim();
+          const password = document.getElementById('editUserPassword').value.trim();
+          
+          if(!username || !email) { showToast("Username and email are required.", "error"); return; }
+          const payload = { username, email };
+          if(password) payload.password = password;
+          performAdminAction(`/admin/edit_user/${id}`, 'POST', payload);
+          closeEditUserModal();
+      }
+
+      // --- Audit Logs Logic ---
+      async function loadAuditLogs() {
+          try {
+              const response = await fetch("/admin/audit_logs");
+              if (response.ok) {
+                  const data = await response.json();
+                  const tbody = document.getElementById("auditTableBody");
+                  if (!tbody) return;
+                  if (!data.logs || data.logs.length === 0) {
+                      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #aaa;">No audit logs found</td></tr>';
+                      return;
+                  }
+                  let html = '';
+                  data.logs.forEach(log => {
+                      const dateStr = log.timestamp ? new Date(log.timestamp).toLocaleString() : '-';
+                      let icon = '📝';
+                      if(log.action === 'ban_user') icon = '🚫';
+                      if(log.action === 'unban_user') icon = '✅';
+                      if(log.action === 'promote_user') icon = '↑';
+                      if(log.action === 'demote_user') icon = '↓';
+                      if(log.action === 'delete_user') icon = '🗑️';
+                      if(log.action === 'edit_user' || log.action === 'reset_password') icon = '✏️';
+
+                      html += `
+                          <tr>
+                              <td>${dateStr}</td>
+                              <td><span class="badge badge-purple">${icon} ${log.action}</span></td>
+                              <td style="color:#a5b4fc">${log.admin_username}</td>
+                              <td>${log.details}</td>
+                          </tr>
+                      `;
+                  });
+                  tbody.innerHTML = html;
+              }
+          } catch(err) { console.error("Error loading audit logs", err); }
       }
 
       function filterUsers() {
@@ -641,15 +717,16 @@
       }
 
       async function deleteUser(userId) {
-        if (!confirm("Are you sure you want to delete this user?")) return;
-        try {
-          const response = await fetch(\`/admin/delete_user/\${userId}\`, { method: "POST" });
-          if (response.ok) {
-            alert("User deleted successfully");
-            loadUsers();
-            loadStats();
-          } else alert("Failed to delete user");
-        } catch (err) { alert("Error deleting user"); }
+        showConfirm("Are you sure you want to delete this user?", async () => {
+          try {
+            const response = await fetch('/admin/delete_user/' + userId, { method: "POST" });
+            if (response.ok) {
+              showToast("User deleted successfully", 'success');
+              loadUsers();
+              loadStats();
+            } else showToast("Failed to delete user", 'error');
+          } catch (err) { showToast("Error deleting user", 'error'); }
+        });
       }
 
       // Load Foods
@@ -672,7 +749,7 @@
       function displayFoods(foods) {
         const tbody = document.getElementById("foodsTableBody");
         if (!foods || foods.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-secondary);">No foods found</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #aaa;">No foods found</td></tr>';
           return;
         }
 
@@ -687,7 +764,7 @@
               <td style="color: #93c5fd;">${food.carbs || 0}g</td>
               <td style="color: #c4b5fd;">${food.fat || 0}g</td>
               <td>${food.serving || "N/A"}</td>
-              <td><button onclick="deleteFood(\${food.id})" class="btn-danger">Delete</button></td>
+              <td><button onclick="deleteFood(${food.id})" class="btn-danger">Delete</button></td>
             </tr>
           `;
         });
@@ -712,20 +789,16 @@
         const serving = document.getElementById("foodServing").value.trim();
 
         if (!name || !calories || !serving) {
-          alert("Please fill in required fields: Name, Calories, Serving Size");
+          showToast("Please fill in required fields: Name, Calories, Serving Size", 'error');
           return;
         }
-
         const payload = { name, calories, protein, carbs, fat, serving };
-
         try {
           const response = await fetch("/admin/add_food", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
           });
           if (response.ok) {
-            alert("Food added successfully");
+            showToast("Food added successfully", 'success');
             document.getElementById("foodName").value = "";
             document.getElementById("foodCalories").value = "";
             document.getElementById("foodProtein").value = "";
@@ -734,20 +807,21 @@
             document.getElementById("foodServing").value = "";
             loadFoods();
             loadStats();
-          } else alert("Failed to add food");
-        } catch (err) { alert("Error adding food"); }
+          } else showToast("Failed to add food", 'error');
+        } catch (err) { showToast("Error adding food", 'error'); }
       }
 
       async function deleteFood(id) {
-        if (!confirm("Are you sure you want to delete this food item?")) return;
-        try {
-          const response = await fetch(\`/admin/delete_food/\${id}\`, { method: "POST" });
-          if (response.ok) {
-            alert("Food deleted");
-            loadFoods();
-            loadStats();
-          } else alert("Failed to delete food");
-        } catch (err) { alert("Error deleting food"); }
+        showConfirm("Are you sure you want to delete this food item?", async () => {
+          try {
+            const response = await fetch('/admin/delete_food/' + id, { method: "POST" });
+            if (response.ok) {
+              showToast("Food deleted", 'success');
+              loadFoods();
+              loadStats();
+            } else showToast("Failed to delete food", 'error');
+          } catch (err) { showToast("Error deleting food", 'error'); }
+        });
       }
 
       function toggleCustomUnit(selectId, wrapperId) {
@@ -762,8 +836,10 @@
         document.getElementById("trackerTotalCalories").textContent = (qty * cal).toFixed(2) + " kcal";
       }
 
-      document.getElementById("trackerQuantity").addEventListener("input", updateAdminTotalCalories);
-      document.getElementById("trackerCaloriesPerUnit").addEventListener("input", updateAdminTotalCalories);
+      const tq = document.getElementById("trackerQuantity");
+      const tcp = document.getElementById("trackerCaloriesPerUnit");
+      if(tq) tq.addEventListener("input", updateAdminTotalCalories);
+      if(tcp) tcp.addEventListener("input", updateAdminTotalCalories);
 
       function addAdminManualFood() {
         const name = document.getElementById("trackerFoodName").value.trim();
@@ -774,7 +850,7 @@
         const finalUnit = unitSelect === 'custom' ? (customUnit || 'units') : unitSelect;
 
         if (!name || isNaN(calPerUnit) || isNaN(qty)) {
-          alert("Please fill in required fields correctly.");
+          showToast("Please fill in required fields correctly.", 'error');
           return;
         }
 
@@ -797,15 +873,16 @@
         updateAdminTotalCalories();
         
         loadTrackerHistory();
-        alert("Added to Tracker History.");
+        showToast("Added to Tracker History.", 'success');
       }
 
       function loadTrackerHistory() {
         const history = JSON.parse(localStorage.getItem("adminTrackerHistory") || "[]");
         const container = document.getElementById("trackerHistoryContainer");
+        if(!container) return;
         
         if (history.length === 0) {
-          container.innerHTML = '<p style="color: var(--text-secondary);">No tracker history yet.</p>';
+          container.innerHTML = '<p style="color: #aaa;">No tracker history yet.</p>';
           return;
         }
 
@@ -819,7 +896,7 @@
           html += `
             <tr>
               <td style="font-weight: 500; text-transform: capitalize;">${item.name}</td>
-              <td style="color: var(--text-secondary);">${item.desc}</td>
+              <td style="color: #aaa;">${item.desc}</td>
               <td style="color: #fca5a5; font-weight: 600;">${item.total}</td>
               <td style="font-size: 13px;">${item.date}</td>
               <td><button class="btn-danger" onclick="deleteTrackerHistoryItem(${item.id})">Delete</button></td>
@@ -853,7 +930,8 @@
       }
 
       function renderActivityLogs() {
-        const filter = (document.getElementById("logFilter")?.value || "").toLowerCase();
+        const filterEl = document.getElementById("logFilter");
+        const filter = filterEl ? filterEl.value.toLowerCase() : "";
         const tbody = document.getElementById("logsTableBody");
         if (!tbody) return;
         
@@ -864,7 +942,7 @@
         );
 
         if (filtered.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-secondary)">No logs found</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #aaa">No logs found</td></tr>';
           return;
         }
 
@@ -896,7 +974,7 @@
         }, {});
 
         if(chartInstances.pie) chartInstances.pie.destroy();
-        const ctxPie = document.getElementById('actionPieChart');
+        const ctxPie = document.getElementById('pieChart');
         if (ctxPie) {
           chartInstances.pie = new Chart(ctxPie, {
             type: 'doughnut',
@@ -948,7 +1026,7 @@
         });
 
         if(chartInstances.line) chartInstances.line.destroy();
-        const ctxLine = document.getElementById('activityLineChart');
+        const ctxLine = document.getElementById('lineChart');
         if (ctxLine) {
           chartInstances.line = new Chart(ctxLine, {
             type: 'line',
@@ -967,7 +1045,33 @@
           });
         }
       }
-
-    </script>
-  </body>
+      
+      function updateRecentActivity(logs) {
+          const list = document.getElementById('recentActivityList');
+          if(!list) return;
+          if(!logs || logs.length === 0){
+              list.innerHTML = '<p style="color:#aaa;">No recent activity.</p>';
+              return;
+          }
+          let html = '';
+          logs.slice(0,5).forEach(log => {
+              let icon = '⚡';
+              if(log.action_type === 'search') icon = '🔍';
+              if(log.action_type === 'manual_entry') icon = '✍️';
+              if(log.action_type === 'login') icon = '👤';
+              if(log.action_type === 'prediction') icon = '🤖';
+              let text = `${log.user_email || 'A user'} performed ${log.action_type}`;
+              if(log.food_name) text = `${log.user_email || 'A user'} logged ${log.food_name}`;
+              html += `<div class="activity-item">${icon} ${text}</div>`;
+          });
+          list.innerHTML = html;
+      }
+      
+      const originalDrawCharts = drawCharts;
+      drawCharts = function(logs) {
+          originalDrawCharts(logs);
+          updateRecentActivity(logs);
+      };
+</script>
+</body>
 </html>
