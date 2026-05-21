@@ -13,7 +13,7 @@ import json
 import os
 from PIL import Image
 import requests
-API_KEY = "ZRREJ2EWXdQvYYckq9EAQdlbKNSbn6Nbk8yybRbI"
+API_KEY = os.environ.get("USDA_API_KEY", "ZRREJ2EWXdQvYYckq9EAQdlbKNSbn6Nbk8yybRbI")
 
 def get_calories_from_api(food_name):
     try:
@@ -54,17 +54,19 @@ def get_calories_from_api(food_name):
         print("API ERROR:", e)
         return None
 
-# TensorFlow imports
-import tensorflow as tf
-from tensorflow import keras
+# TensorFlow imports commented out
+# import tensorflow as tf
+# from tensorflow import keras
 
 app = Flask(__name__)
-app.secret_key = 'super_secret_dev_key' # In production, set this via environment variables
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "super_secret_dev_key")
 CORS(app)
 
 # Database initialization
 DB_USERS_PATH = os.path.join(os.path.dirname(__file__), 'data', 'users.json')
 DB_FOODS_PATH = os.path.join(os.path.dirname(__file__), 'data', 'foods.json')
+DB_LOGS_PATH = os.path.join(os.path.dirname(__file__), 'data', 'activity_logs.json')
+DB_AUDIT_PATH = os.path.join(os.path.dirname(__file__), 'data', 'audit_logs.json')
 
 def load_json_db(path):
     if not os.path.exists(path):
@@ -85,6 +87,10 @@ def init_db():
         save_json_db(DB_USERS_PATH, [])
     if not os.path.exists(DB_FOODS_PATH):
         save_json_db(DB_FOODS_PATH, [])
+    if not os.path.exists(DB_LOGS_PATH):
+        save_json_db(DB_LOGS_PATH, [])
+    if not os.path.exists(DB_AUDIT_PATH):
+        save_json_db(DB_AUDIT_PATH, [])
 
 init_db()
 
@@ -117,7 +123,7 @@ CALORIE_DATA = {
 # Global model variable
 model = None
 
-API_KEY = "ZRREJ2EWXdQvYYckq9EAQdlbKNSbn6Nbk8yybRbI"
+# API_KEY is set globally at the top of the file
 
 # Food Label Mapping System
 food_labels = [
@@ -182,9 +188,10 @@ def normalize_food_name(food_name):
 
     return normalized
 
-import torch
-import timm
-from torchvision import transforms
+# PyTorch / timm / torchvision imports removed for Render deployment
+# import torch
+# import timm
+# from torchvision import transforms
 import json
 
 def load_mapping():
@@ -204,78 +211,35 @@ def load_mapping():
 load_mapping()
 
 def load_model():
-    """Load pretrained EfficientNet-B0 via timm."""
+    """Mock load_model for production without timm."""
     global model
-    try:
-        print("Loading EfficientNet-B0 via timm...")
-        model = timm.create_model(
-            "efficientnet_b0",
-            pretrained=True,
-            num_classes=101
-        )
-        
-        model.eval()
-        print("Model loaded successfully in Eval Mode.")
-    except Exception as e:
-        print(f"Error loading timm model: {e}")
-        model = None
+    model = None
     return model
 
-# Global initialization at startup
-load_model()
+# Global initialization at startup disabled
+# load_model()
 
 import io
 
 # ===== AI PREDICTION FINAL FIX =====
 
-import torch
-import torch.nn.functional as F
-from torchvision import transforms
-from PIL import Image
+#mport torch
+#mport torch.nn.functional as F
+#rom torchvision import transforms
+#rom PIL import Image
 
 def predict_food(image_data):
-
-    global model
-
-    image = Image.open(io.BytesIO(image_data)).convert("RGB")
-
-    transform = transforms.Compose([
-        transforms.Resize((224,224)),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485,0.456,0.406],
-            std=[0.229,0.224,0.225]
-        )
-    ])
-
-    img = transform(image).unsqueeze(0)
-    model.eval()
-
-    with torch.no_grad():
-        outputs = model(img)
-
-        # get probabilities
-        probs = torch.nn.functional.softmax(outputs[0], dim=0)
-        
-        # 5. Print top-3 predictions for debugging.
-        top3_prob, top3_indices = torch.topk(probs, 3)
-        predictions_list = []
-        for i in range(3):
-            idx = top3_indices[i].item()
-            conf = top3_prob[i].item()
-            predictions_list.append({"name": food_labels[idx], "confidence": round(float(conf), 4)})
-            
-        print(f"Top 3 Predictions: {[p['name'] for p in predictions_list]}")
-
-        # best class
-        confidence, class_id = torch.max(probs, dim=0)
-
-        confidence = confidence.item()
-        class_id = class_id.item()
-
-    # REMOVE UNKNOWN threshold completely
-    food_name = food_labels[class_id]
-
+    """
+    Mocked food prediction for Render free tier deployment.
+    Simulates AI image prediction returning Pizza.
+    """
+    food_name = "Pizza"
+    confidence = 0.92
+    predictions_list = [
+        {"name": "Pizza", "confidence": 92},
+        {"name": "Burger", "confidence": 5},
+        {"name": "Pasta", "confidence": 3}
+    ]
     return food_name, confidence, predictions_list
     
 import time
@@ -500,8 +464,8 @@ def get_foods():
         })
     return jsonify({"foods": foods})
 
-# Initialize model on startup
-load_model()
+# Initialize model on startup disabled
+# load_model()
 
 @app.route("/")
 def home():
@@ -527,9 +491,20 @@ def login():
         user = next((u for u in users if u.get('email') == email), None)
         
         if user and check_password_hash(user['password'], password):
+            if user.get('banned'):
+                if request.is_json:
+                    return jsonify({"success": False, "error": "Your account has been banned. Please contact the administrator."}), 403
+                flash('Your account has been banned. Please contact the administrator.', 'error')
+                return render_template('login.html')
+
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user.get('role', 'user')
+            session['email'] = user.get('email', '')
+            
+            from datetime import datetime
+            user['last_active'] = datetime.utcnow().isoformat()
+            save_json_db(DB_USERS_PATH, users)
             
             role = session['role']
             redirect_url = url_for("admin_dashboard") if role == "admin" else url_for("user_dashboard")
@@ -575,12 +550,17 @@ def signup():
         role = "admin" if email == "admin@example.com" else "user"
         new_id = max([u.get('id', 0) for u in users] + [0]) + 1
         
+        from datetime import datetime
+        now_iso = datetime.utcnow().isoformat()
+        
         users.append({
             "id": new_id,
             "username": username,
             "email": email,
             "password": hashed_password,
-            "role": role
+            "role": role,
+            "created_at": now_iso,
+            "last_active": now_iso
         })
         save_json_db(DB_USERS_PATH, users)
         
@@ -627,6 +607,51 @@ def health():
 def foods():
     return {"foods": FOOD_CLASSES}
 
+@app.route('/api/log_activity', methods=['POST'])
+def log_activity():
+    if 'user_id' not in session:
+        return jsonify({"success": False, "error": "Not logged in"}), 401
+    
+    data = request.get_json()
+    action_type = data.get('action_type', 'unknown')
+    food_name = data.get('food_name', '')
+    quantity = data.get('quantity', '')
+    calories = data.get('calories', 0)
+    
+    # Resolve email
+    email = session.get('email')
+    users = load_json_db(DB_USERS_PATH)
+    user = next((u for u in users if u.get('id') == session['user_id']), None)
+    if user:
+        if not email:
+            email = user.get('email')
+            session['email'] = email
+            
+        from datetime import datetime
+        now_iso = datetime.utcnow().isoformat()
+        user['last_active'] = now_iso
+        save_json_db(DB_USERS_PATH, users)
+    else:
+        email = "Unknown"
+        from datetime import datetime
+        now_iso = datetime.utcnow().isoformat()
+
+    logs = load_json_db(DB_LOGS_PATH)
+    new_log = {
+        "id": max([l.get('id', 0) for l in logs] + [0]) + 1,
+        "user_email": email,
+        "action_type": action_type,
+        "food_name": food_name,
+        "quantity": quantity,
+        "calories": calories,
+        "timestamp": now_iso
+    }
+    
+    logs.append(new_log)
+    save_json_db(DB_LOGS_PATH, logs)
+    
+    return jsonify({"success": True})
+
 # === Admin API Routes ===
 def admin_required(f):
     @wraps(f)
@@ -642,18 +667,47 @@ def admin_required(f):
 def admin_stats():
     users = load_json_db(DB_USERS_PATH)
     foods = load_json_db(DB_FOODS_PATH)
+    logs = load_json_db(DB_LOGS_PATH)
     
     total_users = len(users)
     total_foods = len(foods)
     admin_count = sum(1 for u in users if u.get('role') == 'admin')
     user_count = sum(1 for u in users if u.get('role') == 'user')
+    total_searches = sum(1 for l in logs if l.get('action_type') == 'search')
+    
+    # Active Users Today
+    from datetime import datetime
+    active_today = 0
+    today = datetime.utcnow().date()
+    for u in users:
+        la = u.get('last_active')
+        if la:
+            try:
+                if datetime.fromisoformat(la).date() == today:
+                    active_today += 1
+            except:
+                pass
+                
+    # Most searched food
+    from collections import Counter
+    searched_foods = [l.get('food_name') for l in logs if l.get('action_type') == 'search' and l.get('food_name')]
+    most_searched = Counter(searched_foods).most_common(1)[0][0] if searched_foods else "None"
     
     return jsonify({
         "totalUsers": total_users,
         "totalFoods": total_foods,
         "adminUsers": admin_count,
-        "regularUsers": user_count
+        "regularUsers": user_count,
+        "totalSearches": total_searches,
+        "activeToday": active_today,
+        "mostSearched": most_searched
     })
+
+@app.route("/admin/activity_logs")
+@admin_required
+def admin_activity_logs():
+    logs = load_json_db(DB_LOGS_PATH)
+    return jsonify({"logs": sorted(logs, key=lambda x: x.get('timestamp', ''), reverse=True)})
 
 @app.route("/admin/get_foods")
 @admin_required
@@ -664,9 +718,8 @@ def get_foods_api():
 @app.route("/admin-dashboard")
 @admin_required
 def admin_dashboard():
-    users = load_json_db(DB_USERS_PATH)
-    foods = load_json_db(DB_FOODS_PATH)
-    return render_template('admin.html', users_count=len(users), foods_count=len(foods), users=users, foods=foods)
+    # Render previously separated admin-dashboard UI directly
+    return render_template('admin-dashboard.html')
 
 @app.route("/admin/users")
 @admin_required
@@ -754,5 +807,214 @@ def delete_food(id):
     return redirect(url_for('admin_foods'))
 
 
+from datetime import datetime
+
+def write_audit_log(admin_id, admin_username, action, target_user_id=None, details=""):
+    """Write an entry to the admin audit log."""
+    logs = load_json_db(DB_AUDIT_PATH)
+    logs.append({
+        "id": max([l.get('id', 0) for l in logs] + [0]) + 1,
+        "admin_id": admin_id,
+        "admin_username": admin_username,
+        "action": action,
+        "target_user_id": target_user_id,
+        "details": details,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+    save_json_db(DB_AUDIT_PATH, logs)
+
+
+# ── BAN / UNBAN USER ─────────────────────────────────────────────
+@app.route("/admin/ban_user/<int:id>", methods=['POST'])
+@admin_required
+def ban_user(id):
+    if id == session.get('user_id'):
+        return jsonify({"success": False, "error": "You cannot ban yourself."}), 400
+
+    users = load_json_db(DB_USERS_PATH)
+    user = next((u for u in users if u.get('id') == id), None)
+    if not user:
+        return jsonify({"success": False, "error": "User not found."}), 404
+
+    user['banned'] = True
+    save_json_db(DB_USERS_PATH, users)
+
+    write_audit_log(
+        session['user_id'], session['username'],
+        "ban_user", id,
+        f"Banned user: {user['username']} ({user['email']})"
+    )
+    return jsonify({"success": True, "message": f"User '{user['username']}' has been banned."})
+
+
+@app.route("/admin/unban_user/<int:id>", methods=['POST'])
+@admin_required
+def unban_user(id):
+    users = load_json_db(DB_USERS_PATH)
+    user = next((u for u in users if u.get('id') == id), None)
+    if not user:
+        return jsonify({"success": False, "error": "User not found."}), 404
+
+    user['banned'] = False
+    save_json_db(DB_USERS_PATH, users)
+
+    write_audit_log(
+        session['user_id'], session['username'],
+        "unban_user", id,
+        f"Unbanned user: {user['username']} ({user['email']})"
+    )
+    return jsonify({"success": True, "message": f"User '{user['username']}' has been unbanned."})
+
+
+# ── PROMOTE USER TO ADMIN ────────────────────────────────────────
+@app.route("/admin/promote_user/<int:id>", methods=['POST'])
+@admin_required
+def promote_user(id):
+    if id == session.get('user_id'):
+        return jsonify({"success": False, "error": "You are already an admin."}), 400
+
+    users = load_json_db(DB_USERS_PATH)
+    user = next((u for u in users if u.get('id') == id), None)
+    if not user:
+        return jsonify({"success": False, "error": "User not found."}), 404
+
+    if user.get('role') == 'admin':
+        return jsonify({"success": False, "error": "User is already an admin."}), 400
+
+    user['role'] = 'admin'
+    save_json_db(DB_USERS_PATH, users)
+
+    write_audit_log(
+        session['user_id'], session['username'],
+        "promote_user", id,
+        f"Promoted user to admin: {user['username']} ({user['email']})"
+    )
+    return jsonify({"success": True, "message": f"User '{user['username']}' has been promoted to admin."})
+
+
+# ── DEMOTE ADMIN TO USER ─────────────────────────────────────────
+@app.route("/admin/demote_user/<int:id>", methods=['POST'])
+@admin_required
+def demote_user(id):
+    if id == session.get('user_id'):
+        return jsonify({"success": False, "error": "You cannot demote yourself."}), 400
+
+    users = load_json_db(DB_USERS_PATH)
+    user = next((u for u in users if u.get('id') == id), None)
+    if not user:
+        return jsonify({"success": False, "error": "User not found."}), 404
+
+    if user.get('role') != 'admin':
+        return jsonify({"success": False, "error": "User is not an admin."}), 400
+
+    user['role'] = 'user'
+    save_json_db(DB_USERS_PATH, users)
+
+    write_audit_log(
+        session['user_id'], session['username'],
+        "demote_user", id,
+        f"Demoted admin to user: {user['username']} ({user['email']})"
+    )
+    return jsonify({"success": True, "message": f"User '{user['username']}' has been demoted to regular user."})
+
+
+# ── EDIT USER (username / email) ─────────────────────────────────
+@app.route("/admin/edit_user/<int:id>", methods=['POST'])
+@admin_required
+def edit_user(id):
+    data = request.get_json()
+    new_username = data.get('username', '').strip()
+    new_email = data.get('email', '').strip()
+    new_password = data.get('password', '').strip()
+
+    if not new_username or not new_email:
+        return jsonify({"success": False, "error": "Username and email are required."}), 400
+
+    users = load_json_db(DB_USERS_PATH)
+    user = next((u for u in users if u.get('id') == id), None)
+    if not user:
+        return jsonify({"success": False, "error": "User not found."}), 404
+
+    # Check duplicates (excluding self)
+    if any(u.get('email') == new_email and u.get('id') != id for u in users):
+        return jsonify({"success": False, "error": "Email already in use."}), 409
+    if any(u.get('username') == new_username and u.get('id') != id for u in users):
+        return jsonify({"success": False, "error": "Username already in use."}), 409
+
+    old_username = user['username']
+    user['username'] = new_username
+    user['email'] = new_email
+    if new_password:
+        user['password'] = generate_password_hash(new_password)
+
+    save_json_db(DB_USERS_PATH, users)
+
+    write_audit_log(
+        session['user_id'], session['username'],
+        "edit_user", id,
+        f"Edited user: {old_username} → {new_username} ({new_email})"
+        + (" [password reset]" if new_password else "")
+    )
+    return jsonify({"success": True, "message": f"User '{new_username}' updated successfully."})
+
+
+# ── DELETE USER (JSON response version for AJAX) ─────────────────
+@app.route("/admin/delete_user_ajax/<int:id>", methods=['POST'])
+@admin_required
+def delete_user_ajax(id):
+    if id == session.get('user_id'):
+        return jsonify({"success": False, "error": "You cannot delete yourself."}), 400
+
+    users = load_json_db(DB_USERS_PATH)
+    user = next((u for u in users if u.get('id') == id), None)
+    if not user:
+        return jsonify({"success": False, "error": "User not found."}), 404
+
+    users = [u for u in users if u.get('id') != id]
+    save_json_db(DB_USERS_PATH, users)
+
+    write_audit_log(
+        session['user_id'], session['username'],
+        "delete_user", id,
+        f"Deleted user: {user['username']} ({user['email']})"
+    )
+    return jsonify({"success": True, "message": f"User '{user['username']}' deleted."})
+
+
+# ── AUDIT LOG VIEWER ─────────────────────────────────────────────
+@app.route("/admin/audit_logs")
+@admin_required
+def admin_audit_logs():
+    logs = load_json_db(DB_AUDIT_PATH)
+    logs_sorted = sorted(logs, key=lambda x: x.get('timestamp', ''), reverse=True)
+    return jsonify({"logs": logs_sorted})
+
+
+# ── RESET USER PASSWORD ───────────────────────────────────────────
+@app.route("/admin/reset_password/<int:id>", methods=['POST'])
+@admin_required
+def reset_password(id):
+    data = request.get_json()
+    new_password = data.get('password', '').strip()
+
+    if not new_password or len(new_password) < 6:
+        return jsonify({"success": False, "error": "Password must be at least 6 characters."}), 400
+
+    users = load_json_db(DB_USERS_PATH)
+    user = next((u for u in users if u.get('id') == id), None)
+    if not user:
+        return jsonify({"success": False, "error": "User not found."}), 404
+
+    user['password'] = generate_password_hash(new_password)
+    save_json_db(DB_USERS_PATH, users)
+
+    write_audit_log(
+        session['user_id'], session['username'],
+        "reset_password", id,
+        f"Reset password for: {user['username']} ({user['email']})"
+    )
+    return jsonify({"success": True, "message": f"Password for '{user['username']}' has been reset."})
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Disable debug=True for production
+    app.run(debug=os.environ.get("FLASK_DEBUG", "False").lower() == "true")

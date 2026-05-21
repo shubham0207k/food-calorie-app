@@ -1,0 +1,65 @@
+[
+    {
+        "id": 1,
+        "user_email": "s234@gmail.com",
+        "action_type": "search",
+        "food_name": "Apple",
+        "quantity": "100g",
+        "calories": 52,
+        "timestamp": "2026-04-10T22:24:18.312479"
+    },
+    {
+        "id": 2,
+        "user_email": "s234@gmail.com",
+        "action_type": "search",
+        "food_name": "Pizza",
+        "quantity": "100g",
+        "calories": 250,
+        "timestamp": "2026-04-10T22:38:07.109495"
+    },
+    {
+        "id": 3,
+        "user_email": "s234@gmail.com",
+        "action_type": "manual",
+        "food_name": "crabs",
+        "quantity": "100 grams",
+        "calories": 1000,
+        "timestamp": "2026-04-11T08:05:48.711909"
+    },
+    {
+        "id": 4,
+        "user_email": "s234@gmail.com",
+        "action_type": "search",
+        "food_name": "Apple",
+        "quantity": "100g",
+        "calories": 52,
+        "timestamp": "2026-04-11T09:17:52.627616"
+    },
+    {
+        "id": 5,
+        "user_email": "s234@gmail.com",
+        "action_type": "search",
+        "food_name": "Apple",
+        "quantity": "100g",
+        "calories": 46,
+        "timestamp": "2026-05-09T07:26:17.130783"
+    },
+    {
+        "id": 6,
+        "user_email": "897@gmail.com",
+        "action_type": "upload",
+        "food_name": "Unknown Food",
+        "quantity": "1 serving",
+        "calories": "Unknown",
+        "timestamp": "2026-05-09T11:59:32.386661"
+    },
+    {
+        "id": 7,
+        "user_email": "897@gmail.com",
+        "action_type": "upload",
+        "food_name": "Unknown Food",
+        "quantity": "1 serving",
+        "calories": "Unknown",
+        "timestamp": "2026-05-09T11:59:54.103012"
+    }
+]

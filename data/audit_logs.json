@@ -1,0 +1,20 @@
+[
+    {
+        "id": 1,
+        "admin_id": 1,
+        "admin_username": "admin",
+        "action": "delete_user",
+        "target_user_id": 4,
+        "details": "Deleted user: ui (s234@gmail.com)",
+        "timestamp": "2026-05-09T11:14:50.009255"
+    },
+    {
+        "id": 2,
+        "admin_id": 1,
+        "admin_username": "admin",
+        "action": "ban_user",
+        "target_user_id": 3,
+        "details": "Banned user: shubh (shubh65@gmail.com)",
+        "timestamp": "2026-05-09T11:14:56.761067"
+    }
+]
