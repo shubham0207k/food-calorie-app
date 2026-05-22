@@ -68,6 +68,11 @@ DB_FOODS_PATH = os.path.join(os.path.dirname(__file__), 'data', 'foods.json')
 DB_LOGS_PATH = os.path.join(os.path.dirname(__file__), 'data', 'activity_logs.json')
 DB_AUDIT_PATH = os.path.join(os.path.dirname(__file__), 'data', 'audit_logs.json')
 
+ADMIN_EMAILS = [
+    "admin@example.com",
+    "YOUR_REAL_EMAIL@gmail.com"
+]
+
 def load_json_db(path):
     if not os.path.exists(path):
         return []
@@ -547,7 +552,7 @@ def signup():
             return render_template('signup.html')
             
         hashed_password = generate_password_hash(password)
-        role = "admin" if email == "admin@example.com" else "user"
+        role = "admin" if email in ADMIN_EMAILS else "user"
         new_id = max([u.get('id', 0) for u in users] + [0]) + 1
         
         from datetime import datetime

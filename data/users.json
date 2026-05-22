@@ -1,12 +1,4 @@
-[
-    {
-        "id": 1,
-        "username": "admin",
-        "email": "admin345@gmail.com",
-        "password": "scrypt:32768:8:1$K0XO9eoSUtXspz25$503040a42bd1c2de00c04d83f3c095f34132e75358b54fd28d08b5e6caa90c0a09084eabee8f4f86b8322638132be51b9b13904390bc7243a3bdcd3b8420983c",
-        "role": "admin",
-        "last_active": "2026-05-09T11:44:12.807624"
-    },
+d
     {
         "id": 2,
         "username": "shubham",
