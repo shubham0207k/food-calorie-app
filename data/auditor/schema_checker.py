@@ -229,13 +229,17 @@ def validate_required_fields(
             )
         )
 
-    if "usda" in food and food["usda"] is not None and not isinstance(food["usda"], str):
+    if (
+        "usda" in food
+        and food["usda"] is not None
+        and not isinstance(food["usda"], (str, dict))
+    ):
         issues.append(
             ValidationIssue(
                 collection=collection,
                 index=index,
                 food_id=label,
-                message="usda must be a string or null",
+                message="usda must be a string, object, or null",
             )
         )
 
