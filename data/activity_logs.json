@@ -637,5 +637,32 @@
         "quantity": "1 serving",
         "calories": "Unknown",
         "timestamp": "2026-07-17T04:54:57.040597"
+    },
+    {
+        "id": 72,
+        "user_email": "Unknown",
+        "action_type": "upload",
+        "food_name": "hamburger",
+        "quantity": "1 serving",
+        "calories": 88,
+        "timestamp": "2026-07-25T05:06:25.942040"
+    },
+    {
+        "id": 73,
+        "user_email": "neel12345@gmail.com",
+        "action_type": "upload",
+        "food_name": "hamburger",
+        "quantity": "1 serving",
+        "calories": 88,
+        "timestamp": "2026-07-25T05:33:18.485533"
+    },
+    {
+        "id": 74,
+        "user_email": "neel12345@gmail.com",
+        "action_type": "upload",
+        "food_name": "hamburger",
+        "quantity": "1 serving",
+        "calories": 88,
+        "timestamp": "2026-07-25T05:33:21.385155"
     }
 ]

@@ -189,6 +189,7 @@ def match_knowledge_base(
             elif result.status == "skipped":
                 stats.skipped += 1
             else:
+                stats.unmatched += 1
                 stats.unmatched_foods.append(food_name)
 
         if collection_changed:

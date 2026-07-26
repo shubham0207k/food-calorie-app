@@ -6,12 +6,12 @@ from dataclasses import dataclass
 from typing import Any
 
 try:
-    from .confidence import score_candidate
-    from .config import CONFIDENCE_THRESHOLD
+    from .confidence import normalize_name, score_candidate
+    from .config import CONFIDENCE_THRESHOLD, PREFERRED_DATA_TYPES
     from .usda_client import search_food
 except ImportError:
-    from confidence import score_candidate
-    from config import CONFIDENCE_THRESHOLD
+    from confidence import normalize_name, score_candidate
+    from config import CONFIDENCE_THRESHOLD, PREFERRED_DATA_TYPES
     from usda_client import search_food
 
 
@@ -24,6 +24,37 @@ class MatchResult:
     confidence: float = 0.0
     query: str = ""
     warning: str | None = None
+
+
+DATA_TYPE_CONFIDENCE_MARGIN = 0.03
+
+USDA_SEARCH_ALIASES: dict[str, tuple[str, ...]] = {
+    "burger": ("hamburger",),
+    "cup cakes": ("cupcakes",),
+    "donuts": ("doughnuts",),
+    "french fries": ("french fried potatoes",),
+    "fries": ("french fries", "french fried potatoes"),
+    "hot dog": ("frankfurter",),
+    "mac and cheese": ("macaroni and cheese",),
+    "omelette": ("omelet",),
+    "steak": ("beef steak",),
+}
+
+TOKEN_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "in",
+    "of",
+    "or",
+    "the",
+    "with",
+}
+
+DATA_TYPE_PRIORITY = {
+    data_type: index
+    for index, data_type in enumerate(PREFERRED_DATA_TYPES)
+}
 
 
 def has_existing_usda(value: Any) -> bool:
@@ -39,6 +70,14 @@ def has_existing_usda(value: Any) -> bool:
         return bool(value)
 
     return False
+
+
+def _normalize_search_term(value: str) -> str:
+    return " ".join(value.lower().split())
+
+
+def _usda_search_aliases(value: str) -> list[str]:
+    return list(USDA_SEARCH_ALIASES.get(_normalize_search_term(value), ()))
 
 
 def _food_aliases(food: dict[str, Any]) -> list[str]:
@@ -87,6 +126,13 @@ def _candidate_data_type(candidate: dict[str, Any]) -> str:
     return ""
 
 
+def _candidate_data_type_priority(candidate: dict[str, Any]) -> int:
+    return DATA_TYPE_PRIORITY.get(
+        _candidate_data_type(candidate),
+        len(DATA_TYPE_PRIORITY),
+    )
+
+
 def _usda_field(candidate: dict[str, Any], confidence: float) -> dict[str, Any] | None:
     fdc_id = _candidate_fdc_id(candidate)
     description = _candidate_description(candidate)
@@ -104,7 +150,7 @@ def _usda_field(candidate: dict[str, Any], confidence: float) -> dict[str, Any] 
 
 
 def _search_candidates(query: str) -> tuple[list[dict[str, Any]], str | None]:
-    data = search_food(query)
+    data = search_food(_normalize_search_term(query))
     foods = data.get("foods", [])
     warning = data.get("error")
 
@@ -120,6 +166,52 @@ def _search_candidates(query: str) -> tuple[list[dict[str, Any]], str | None]:
     return candidates, warning if isinstance(warning, str) else None
 
 
+def _singularize_token(token: str) -> str:
+    if len(token) > 4 and token.endswith("ies"):
+        return f"{token[:-3]}y"
+
+    if len(token) > 3 and token.endswith("s") and not token.endswith("ss"):
+        return token[:-1]
+
+    return token
+
+
+def _meaningful_tokens(value: str) -> set[str]:
+    return {
+        _singularize_token(token)
+        for token in normalize_name(value).split()
+        if token not in TOKEN_STOPWORDS
+    }
+
+
+def _is_clear_mismatch(
+    candidate: dict[str, Any],
+    display_name: str,
+    aliases: list[str],
+    matched_query: str,
+) -> bool:
+    description_tokens = _meaningful_tokens(_candidate_description(candidate))
+
+    if not description_tokens:
+        return True
+
+    names = [display_name, matched_query, *aliases]
+
+    for name in names:
+        name_tokens = _meaningful_tokens(name)
+
+        if not name_tokens:
+            continue
+
+        if len(name_tokens) == 1 and name_tokens & description_tokens:
+            return False
+
+        if len(name_tokens) > 1 and name_tokens <= description_tokens:
+            return False
+
+    return True
+
+
 def _candidate_key(candidate: dict[str, Any]) -> tuple[Any, str]:
     return (
         candidate.get("fdcId", candidate.get("fdc_id")),
@@ -127,16 +219,51 @@ def _candidate_key(candidate: dict[str, Any]) -> tuple[Any, str]:
     )
 
 
+def _is_better_candidate(
+    candidate: dict[str, Any],
+    confidence: float,
+    best_candidate: dict[str, Any] | None,
+    best_confidence: float,
+    min_confidence: float,
+) -> bool:
+    if best_candidate is None:
+        return True
+
+    if confidence > best_confidence + DATA_TYPE_CONFIDENCE_MARGIN:
+        return True
+
+    if best_confidence > confidence + DATA_TYPE_CONFIDENCE_MARGIN:
+        return False
+
+    candidate_accepted = confidence >= min_confidence
+    best_accepted = best_confidence >= min_confidence
+
+    if candidate_accepted != best_accepted:
+        return candidate_accepted
+
+    candidate_priority = _candidate_data_type_priority(candidate)
+    best_priority = _candidate_data_type_priority(best_candidate)
+
+    if candidate_priority != best_priority:
+        return candidate_priority < best_priority
+
+    return confidence > best_confidence
+
+
 def _best_candidate(
-    candidates: list[dict[str, Any]],
+    candidate_matches: list[tuple[dict[str, Any], str]],
     display_name: str,
     aliases: list[str],
-    query: str,
-) -> tuple[dict[str, Any] | None, float]:
+    min_confidence: float,
+) -> tuple[dict[str, Any] | None, float, str]:
     best_candidate = None
     best_confidence = 0.0
+    best_query = ""
 
-    for candidate in candidates:
+    for candidate, query in candidate_matches:
+        if _is_clear_mismatch(candidate, display_name, aliases, query):
+            continue
+
         confidence = score_candidate(
             candidate=candidate,
             display_name=display_name,
@@ -144,11 +271,18 @@ def _best_candidate(
             matched_query=query,
         )
 
-        if confidence > best_confidence:
+        if _is_better_candidate(
+            candidate=candidate,
+            confidence=confidence,
+            best_candidate=best_candidate,
+            best_confidence=best_confidence,
+            min_confidence=min_confidence,
+        ):
             best_candidate = candidate
             best_confidence = confidence
+            best_query = query
 
-    return best_candidate, best_confidence
+    return best_candidate, best_confidence, best_query
 
 
 def match_food(
@@ -167,55 +301,62 @@ def match_food(
 
     display_name = display_name.strip()
     aliases = _food_aliases(food)
-    seen_candidates: set[tuple[Any, str]] = set()
-    all_candidates: list[dict[str, Any]] = []
+    usda_aliases = _usda_search_aliases(display_name)
+    scoring_aliases = [*aliases, *usda_aliases]
+    seen_candidate_queries: set[tuple[tuple[Any, str], str]] = set()
+    seen_queries: set[str] = set()
+    candidate_matches: list[tuple[dict[str, Any], str]] = []
     warnings: list[str] = []
 
-    candidates, warning = _search_candidates(display_name)
+    def add_search_results(raw_query: str) -> None:
+        query = _normalize_search_term(raw_query)
 
-    if warning:
-        warnings.append(warning)
+        if not query or query in seen_queries:
+            return
 
-    for candidate in candidates:
-        key = _candidate_key(candidate)
+        seen_queries.add(query)
+        candidates, warning = _search_candidates(query)
 
-        if key not in seen_candidates:
-            seen_candidates.add(key)
-            all_candidates.append(candidate)
+        if warning:
+            warnings.append(warning)
 
-    best_candidate, best_confidence = _best_candidate(
-        candidates=all_candidates,
+        for candidate in candidates:
+            candidate_query_key = (_candidate_key(candidate), query)
+
+            if candidate_query_key not in seen_candidate_queries:
+                seen_candidate_queries.add(candidate_query_key)
+                candidate_matches.append((candidate, query))
+
+    add_search_results(display_name)
+
+    for alias in usda_aliases:
+        add_search_results(alias)
+
+    best_candidate, best_confidence, best_query = _best_candidate(
+        candidate_matches=candidate_matches,
         display_name=display_name,
-        aliases=aliases,
-        query=display_name,
+        aliases=scoring_aliases,
+        min_confidence=min_confidence,
     )
-    best_query = display_name
 
     if best_confidence < min_confidence:
         for alias in aliases:
-            alias_candidates, warning = _search_candidates(alias)
+            add_search_results(alias)
 
-            if warning:
-                warnings.append(warning)
+            for usda_alias in _usda_search_aliases(alias):
+                add_search_results(usda_alias)
 
-            for candidate in alias_candidates:
-                key = _candidate_key(candidate)
-
-                if key not in seen_candidates:
-                    seen_candidates.add(key)
-                    all_candidates.append(candidate)
-
-            candidate, confidence = _best_candidate(
-                candidates=all_candidates,
+            candidate, confidence, query = _best_candidate(
+                candidate_matches=candidate_matches,
                 display_name=display_name,
-                aliases=aliases,
-                query=alias,
+                aliases=scoring_aliases,
+                min_confidence=min_confidence,
             )
 
-            if confidence > best_confidence:
+            if candidate is not None:
                 best_candidate = candidate
                 best_confidence = confidence
-                best_query = alias
+                best_query = query
 
     if best_candidate is None or best_confidence < min_confidence:
         return MatchResult(

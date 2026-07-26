@@ -13,6 +13,7 @@ class MatchStats:
     matched: int = 0
     already_matched: int = 0
     skipped: int = 0
+    unmatched: int = 0
     collections_updated: int = 0
     confidences: list[float] = field(default_factory=list)
     unmatched_foods: list[str] = field(default_factory=list)
@@ -66,6 +67,8 @@ def print_matching_report(stats: MatchStats, dry_run: bool = False) -> None:
     print_metric("Already Matched:", stats.already_matched)
     print()
     print_metric("Skipped:", stats.skipped)
+    print()
+    print_metric("Unmatched:", stats.unmatched)
     print()
     print_metric("Average Confidence:", _format_confidence(average))
     print()
