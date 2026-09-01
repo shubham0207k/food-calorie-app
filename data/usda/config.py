@@ -4,7 +4,7 @@ from __future__ import annotations
 
 
 USDA_API_KEY_ENV = "USDA_API_KEY"
-DEFAULT_USDA_API_KEY = "ZRREJ2EWXdQvYYckq9EAQdlbKNSbn6Nbk8yybRbI"
+DEFAULT_USDA_API_KEY = ""
 USDA_SEARCH_URL = "https://api.nal.usda.gov/fdc/v1/foods/search"
 
 CONFIDENCE_THRESHOLD = 0.70
