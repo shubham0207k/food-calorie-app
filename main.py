@@ -108,10 +108,6 @@ def get_food_name(class_id, confidence):
 
     return "Unknown Food"
 
-# PyTorch / timm / torchvision imports removed for Render deployment
-# import torch
-# import timm
-# from torchvision import transforms
 import json
 
 def load_mapping():
@@ -129,15 +125,6 @@ def load_mapping():
         print(f"Error loading mapping: {e}")
 
 load_mapping()
-
-def load_model():
-    """Mock load_model for production without timm."""
-    global model
-    model = None
-    return model
-
-# Global initialization at startup disabled
-# load_model()
 
 import io
 
@@ -367,7 +354,6 @@ def get_foods():
     return jsonify({"foods": foods})
 
 # Initialize model on startup disabled
-# load_model()
 
 @app.route("/")
 def home():
