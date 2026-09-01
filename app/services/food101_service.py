@@ -3,11 +3,22 @@ from io import BytesIO
 from PIL import Image
 from transformers import pipeline
 
-# Load the pretrained image classification pipeline once when the app starts.
-classifier = pipeline(
-    "image-classification",
-    model="nateraw/food"
-)
+MODEL_NAME = "nateraw/food"
+classifier = None
+
+
+def get_classifier():
+    """Load the pretrained image classifier on first use."""
+
+    global classifier
+
+    if classifier is None:
+        classifier = pipeline(
+            "image-classification",
+            model=MODEL_NAME
+        )
+
+    return classifier
 
 
 def predict_food(image_file):
@@ -26,7 +37,7 @@ def predict_food(image_file):
     else:
         image = Image.open(image_file).convert("RGB")
 
-    results = classifier(image)
+    results = get_classifier()(image)
 
     top3 = results[:3]
 

@@ -16,6 +16,7 @@ try:
         REQUEST_TIMEOUT,
         RETRY_BACKOFF,
         SEARCH_PAGE_SIZE,
+        DEFAULT_USDA_API_KEY,
         USDA_API_KEY_ENV,
         USDA_SEARCH_URL,
     )
@@ -27,6 +28,7 @@ except ImportError:
         REQUEST_TIMEOUT,
         RETRY_BACKOFF,
         SEARCH_PAGE_SIZE,
+        DEFAULT_USDA_API_KEY,
         USDA_API_KEY_ENV,
         USDA_SEARCH_URL,
     )
@@ -36,7 +38,7 @@ class _USDAClient:
     """Reusable client exposing only the USDA search endpoint."""
 
     def __init__(self) -> None:
-        self.api_key = os.environ.get(USDA_API_KEY_ENV)
+        self.api_key = os.environ.get(USDA_API_KEY_ENV, DEFAULT_USDA_API_KEY)
         self.session = requests.Session()
         self.last_request_at = 0.0
 

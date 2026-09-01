@@ -1,50 +1,16 @@
-import os
-import requests
+"""Backward-compatible USDA nutrition adapter."""
 
-API_KEY = os.environ.get(
-    "USDA_API_KEY",
-    "ZRREJ2EWXdQvYYckq9EAQdlbKNSbn6Nbk8yybRbI",
-)
+from __future__ import annotations
+
+from app.services.nutrition_service import get_nutrition, to_legacy_nutrition
 
 
 def get_calories_from_api(food_name):
-    try:
-        url = (
-            f"https://api.nal.usda.gov/fdc/v1/foods/search"
-            f"?query={food_name}&api_key={API_KEY}"
-        )
+    """Return the legacy calorie dictionary expected by existing routes."""
 
-        response = requests.get(url)
-        data = response.json()
+    nutrition = get_nutrition(food_name)
 
-        if "foods" not in data or len(data["foods"]) == 0:
-            return None
-
-        nutrients = data["foods"][0].get("foodNutrients", [])
-
-        calories = protein = carbs = fat = "Unknown"
-
-        for n in nutrients:
-            name = n.get("nutrientName")
-            value = n.get("value")
-
-            if name == "Energy":
-                calories = value
-            elif name == "Protein":
-                protein = value
-            elif name == "Carbohydrate, by difference":
-                carbs = value
-            elif name == "Total lipid (fat)":
-                fat = value
-
-        return {
-            "calories": calories,
-            "serving": "100g",
-            "protein": protein,
-            "carbs": carbs,
-            "fat": fat,
-        }
-
-    except Exception as e:
-        print("API ERROR:", e)
+    if not nutrition.get("nutrition_available"):
         return None
+
+    return to_legacy_nutrition(nutrition)
