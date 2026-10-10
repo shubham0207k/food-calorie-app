@@ -1,6 +1,20 @@
 """
 Food Calorie Estimation API using Flask and CNN Deep Learning Model
 """
+import os
+from pathlib import Path
+
+# Automatically load environment variables from .env in project root
+try:
+    from dotenv import load_dotenv
+
+    _project_root = Path(__file__).resolve().parent
+    _env_path = _project_root / ".env"
+    if _env_path.is_file():
+        load_dotenv(dotenv_path=_env_path, override=False)
+except ImportError:
+    pass
+
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.services.food101_service import predict_food as hf_predict_food
@@ -904,5 +918,12 @@ def reset_password(id):
     return jsonify({"success": True, "message": f"Password for '{user['username']}' has been reset."})
 
 if __name__ == "__main__":
+    usda_key = os.environ.get("USDA_API_KEY", "").strip()
+    if not usda_key or usda_key == "your_actual_usda_api_key":
+        print("[NOTICE] USDA_API_KEY is not configured or using default placeholder in .env.")
+        print("[NOTICE] To enable live USDA FoodData Central lookups, add your USDA API key to .env")
+    else:
+        print("[INFO] USDA API key configured successfully.")
+
     # Disable debug=True for production
     app.run(debug=True)

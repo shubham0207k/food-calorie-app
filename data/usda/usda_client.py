@@ -37,10 +37,20 @@ except ImportError:
 class _USDAClient:
     """Reusable client exposing only the USDA search endpoint."""
 
-    def __init__(self) -> None:
-        self.api_key = os.environ.get(USDA_API_KEY_ENV, DEFAULT_USDA_API_KEY)
+    def __init__(self, api_key: str | None = None) -> None:
+        self._api_key = api_key
         self.session = requests.Session()
         self.last_request_at = 0.0
+
+    @property
+    def api_key(self) -> str:
+        if self._api_key is not None:
+            return self._api_key
+        return os.environ.get(USDA_API_KEY_ENV, DEFAULT_USDA_API_KEY)
+
+    @api_key.setter
+    def api_key(self, value: str | None) -> None:
+        self._api_key = value
 
     def _wait_for_rate_limit(self) -> None:
         elapsed = time.monotonic() - self.last_request_at
@@ -110,7 +120,10 @@ class _USDAClient:
 
             except (requests.RequestException, ValueError) as exc:
                 if attempt >= MAX_RETRIES:
-                    return {"foods": [], "error": str(exc)}
+                    error_msg = str(exc)
+                    if self.api_key and self.api_key in error_msg:
+                        error_msg = error_msg.replace(self.api_key, "[REDACTED]")
+                    return {"foods": [], "error": error_msg}
 
                 time.sleep(RETRY_BACKOFF * (attempt + 1))
 
