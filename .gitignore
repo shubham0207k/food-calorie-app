@@ -35,3 +35,8 @@ build/
 evaluation_data/
 
 *.egg-info/
+
+# Environment variables
+.env
+.env.*
+!.env.example
