@@ -41,5 +41,14 @@
         "role": "user",
         "created_at": "2026-05-09T11:51:09.604767",
         "last_active": "2026-05-09T11:59:54.103012"
+    },
+    {
+        "id": 6,
+        "username": "neel1234",
+        "email": "neel12345@gmail.com",
+        "password": "scrypt:32768:8:1$UVCbSoUHkFOHDMb1$805fdb8ea331dcb8bc09281b526f5cf357622a762e26eebe753c8c9ec3db8695887c2ae45b4ee463b48b2deb78137ec835ce46b3aeb2964cbe5af28143b04427",
+        "role": "user",
+        "created_at": "2026-07-25T05:32:38.119650",
+        "last_active": "2026-07-25T05:33:21.385155"
     }
 ]

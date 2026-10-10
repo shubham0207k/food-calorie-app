@@ -2,57 +2,30 @@
 Food Calorie Estimation API using Flask and CNN Deep Learning Model
 """
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
-import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
+from app.services.food101_service import predict_food as hf_predict_food
 from functools import wraps
 from flask_cors import CORS
-import numpy as np
 import base64
 import io
 import json
 import os
-from PIL import Image
-import requests
-API_KEY = os.environ.get("USDA_API_KEY", "ZRREJ2EWXdQvYYckq9EAQdlbKNSbn6Nbk8yybRbI")
 
-def get_calories_from_api(food_name):
-    try:
-        url = f"https://api.nal.usda.gov/fdc/v1/foods/search?query={food_name}&api_key={API_KEY}"
+from app.services.json_db import (
+    load_json_db,
+    save_json_db,
+    init_db,
+)
+from app.services.prediction_service import normalize_food_name
+from app.services.nutrition_service import (
+    SOURCE_LOCAL,
+    calculate_nutrition_for_grams,
+    get_nutrition,
+    legacy_unknown_nutrition,
+    normalize_nutrition_response,
+    to_legacy_nutrition,
+)
 
-        response = requests.get(url)
-        data = response.json()
-
-        if "foods" not in data or len(data["foods"]) == 0:
-            return None
-
-        nutrients = data["foods"][0].get("foodNutrients", [])
-
-        calories = protein = carbs = fat = "Unknown"
-
-        for n in nutrients:
-            name = n.get("nutrientName")
-            value = n.get("value")
-
-            if name == "Energy":
-                calories = value
-            elif name == "Protein":
-                protein = value
-            elif name == "Carbohydrate, by difference":
-                carbs = value
-            elif name == "Total lipid (fat)":
-                fat = value
-
-        return {
-            "calories": calories,
-            "serving": "100g",
-            "protein": protein,
-            "carbs": carbs,
-            "fat": fat
-        }
-
-    except Exception as e:
-        print("API ERROR:", e)
-        return None
 
 # TensorFlow imports commented out
 # import tensorflow as tf
@@ -68,31 +41,12 @@ DB_FOODS_PATH = os.path.join(os.path.dirname(__file__), 'data', 'foods.json')
 DB_LOGS_PATH = os.path.join(os.path.dirname(__file__), 'data', 'activity_logs.json')
 DB_AUDIT_PATH = os.path.join(os.path.dirname(__file__), 'data', 'audit_logs.json')
 
-def load_json_db(path):
-    if not os.path.exists(path):
-        return []
-    with open(path, 'r') as f:
-        try:
-            return json.load(f)
-        except:
-            return []
-
-def save_json_db(path, data):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w') as f:
-        json.dump(data, f, indent=4)
-
-def init_db():
-    if not os.path.exists(DB_USERS_PATH):
-        save_json_db(DB_USERS_PATH, [])
-    if not os.path.exists(DB_FOODS_PATH):
-        save_json_db(DB_FOODS_PATH, [])
-    if not os.path.exists(DB_LOGS_PATH):
-        save_json_db(DB_LOGS_PATH, [])
-    if not os.path.exists(DB_AUDIT_PATH):
-        save_json_db(DB_AUDIT_PATH, [])
-
-init_db()
+init_db(
+    DB_USERS_PATH,
+    DB_FOODS_PATH,
+    DB_LOGS_PATH,
+    DB_AUDIT_PATH,
+)
 
 # Food classes that our model can predict
 FOOD_CLASSES = [
@@ -122,8 +76,6 @@ CALORIE_DATA = {
 
 # Global model variable
 model = None
-
-# API_KEY is set globally at the top of the file
 
 # Food Label Mapping System
 food_labels = [
@@ -156,42 +108,6 @@ def get_food_name(class_id, confidence):
 
     return "Unknown Food"
 
-# Normalize model food names for USDA lookups and calorie mapping
-def normalize_food_name(food_name):
-    if not food_name:
-        return None
-
-    normalized = food_name.lower().strip()
-
-    # Simple alias mapping for commonly misclassified names
-    aliases = {
-        'french fries': 'french fries',
-        'fries': 'french fries',
-        'hot dog': 'hot dog',
-        'hamburger': 'burger',
-        'ice cream': 'ice cream',
-        'chicken wings': 'chicken wings',
-        'pizza': 'pizza',
-        'sushi': 'sushi',
-        'tacos': 'tacos',
-        'bibimbap': 'bibimbap',
-        'burger': 'burger',
-        'dosa': 'dosa',
-        'salad': 'salad',
-    }
-
-    if normalized in aliases:
-        return aliases[normalized]
-
-    # remove punctuation and underscores
-    normalized = normalized.replace('_', ' ').replace('-', ' ').strip()
-
-    return normalized
-
-# PyTorch / timm / torchvision imports removed for Render deployment
-# import torch
-# import timm
-# from torchvision import transforms
 import json
 
 def load_mapping():
@@ -210,15 +126,6 @@ def load_mapping():
 
 load_mapping()
 
-def load_model():
-    """Mock load_model for production without timm."""
-    global model
-    model = None
-    return model
-
-# Global initialization at startup disabled
-# load_model()
-
 import io
 
 # ===== AI PREDICTION FINAL FIX =====
@@ -230,17 +137,10 @@ import io
 
 def predict_food(image_data):
     """
-    Mocked food prediction for Render free tier deployment.
-    Simulates AI image prediction returning Pizza.
+    Wrapper around the Hugging Face Food-101 model.
+    Keeps the same interface used throughout the app.
     """
-    food_name = "Pizza"
-    confidence = 0.92
-    predictions_list = [
-        {"name": "Pizza", "confidence": 92},
-        {"name": "Burger", "confidence": 5},
-        {"name": "Pasta", "confidence": 3}
-    ]
-    return food_name, confidence, predictions_list
+    return hf_predict_food(image_data)
     
 import time
 
@@ -288,6 +188,12 @@ def predict():
         
         # Predict food class with final fix logic
         food_name, confidence, predictions_list = predict_food(image_data)
+        
+        print("\n===== AI Prediction =====")
+        print("Food:", food_name)
+        print("Confidence:", confidence)
+        print("Top 3:", predictions_list)
+        print("=========================\n")
 
         # Apply a usage threshold to reduce obvious classification errors
         if confidence < 0.15 or food_name == "Unknown Food":
@@ -305,22 +211,21 @@ def predict():
             "is_unknown": (predicted_food == "Unknown Food")
         }
 
-        # Get calorie information from USDA API (or fallback to stored CALORIE_DATA)
-        calorie_info = None
+        # Get nutrition through the Phase 2 nutrition service.
+        calorie_info = legacy_unknown_nutrition()
         if predicted_food != "Unknown Food":
             normalized_name = normalize_food_name(predicted_food)
-            calorie_info = get_calories_from_api(normalized_name)
-            if (not calorie_info or calorie_info.get("calories") == "Unknown") and normalized_name in CALORIE_DATA:
-                calorie_info = CALORIE_DATA[normalized_name]
+            nutrition_data = get_nutrition(normalized_name)
 
-        if calorie_info is None:
-            calorie_info = {
-                "calories": "Unknown",
-                "serving": "Unknown",
-                "protein": "Unknown",
-                "carbs": "Unknown",
-                "fat": "Unknown"
-            }
+            if nutrition_data.get("nutrition_available"):
+                calorie_info = to_legacy_nutrition(nutrition_data)
+            elif normalized_name in CALORIE_DATA:
+                local_nutrition = normalize_nutrition_response(
+                    normalized_name,
+                    CALORIE_DATA[normalized_name],
+                    source=SOURCE_LOCAL,
+                )
+                calorie_info = to_legacy_nutrition(local_nutrition)
 
         return jsonify({
             "success": True,
@@ -388,8 +293,9 @@ def manual_entry():
             if calories_per_unit <= 0 or quantity <= 0:
                 return jsonify({"success": False, "error": "Calories per unit and quantity must be positive."}), 400
 
-            if unit not in ['grams', 'pieces']:
-                return jsonify({"success": False, "error": "Unit must be 'grams' or 'pieces'."}), 400
+            if not isinstance(unit, str) or not unit.strip():
+                return jsonify({"success": False, "error": "Unit must be provided."}), 400
+            unit = unit.strip()
 
             total_calories = round(calories_per_unit * quantity, 2)
             nutrition = {
@@ -416,31 +322,14 @@ def manual_entry():
         except ValueError:
             return jsonify({"success": False, "error": "Grams must be a positive number."}), 400
 
-        calorie_info = get_calories_from_api(food_name)
-        if calorie_info is None or calorie_info.get("calories") == "Unknown":
+        nutrition_data = get_nutrition(food_name)
+        if (
+            not nutrition_data.get("nutrition_available")
+            or nutrition_data.get("calories") is None
+        ):
             return jsonify({"success": False, "error": f"Could not find exact nutrition data for '{food_name}'."}), 404
 
-        multiplier = grams / 100.0
-
-        def calc_prop(val):
-            try:
-                if isinstance(val, str):
-                    import re
-                    num_str = re.sub(r'[^\d.]', '', val)
-                    if num_str:
-                        return round(float(num_str) * multiplier, 2)
-                    return "Unknown"
-                return round(float(val) * multiplier, 2)
-            except (ValueError, TypeError):
-                return "Unknown"
-                
-        calculated = {
-            "calories": calc_prop(calorie_info.get("calories", "Unknown")),
-            "serving_size": f"{grams}g",
-            "protein": calc_prop(calorie_info.get("protein", "Unknown")),
-            "carbohydrates": calc_prop(calorie_info.get("carbs", "Unknown")),
-            "fat": calc_prop(calorie_info.get("fat", "Unknown"))
-        }
+        calculated = calculate_nutrition_for_grams(nutrition_data, grams)
         
         return jsonify({
             "success": True,
@@ -465,7 +354,6 @@ def get_foods():
     return jsonify({"foods": foods})
 
 # Initialize model on startup disabled
-# load_model()
 
 @app.route("/")
 def home():
@@ -1017,4 +905,4 @@ def reset_password(id):
 
 if __name__ == "__main__":
     # Disable debug=True for production
-    app.run(debug=os.environ.get("FLASK_DEBUG", "False").lower() == "true")
+    app.run(debug=True)

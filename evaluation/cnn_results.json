@@ -1,0 +1,15 @@
+{
+    "model": "ResNet-50",
+    "model_source": "hf_hub:anonauthors/food101-resnet50",
+    "dataset": "Food-101",
+    "split": "test",
+    "classes": 101,
+    "images_evaluated": 25250,
+    "device": "cpu",
+    "top1_accuracy": 84.15,
+    "top5_accuracy": 96.15,
+    "macro_precision": 84.32,
+    "macro_recall": 84.15,
+    "macro_f1": 84.09,
+    "average_inference_ms": 58.15
+}
