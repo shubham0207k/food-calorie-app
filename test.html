@@ -641,12 +641,11 @@
                 </div>
 
                 <div class="input-group">
-                    <label>Quantity Mode</label>
-                    <div class="toggle-group">
-                        <button class="toggle-btn active" onclick="setMode('grams')">Grams</button>
-                        <button class="toggle-btn" onclick="setMode('pieces')">Pieces</button>
-                        <button class="toggle-btn" onclick="setMode('servings')">Servings</button>
-                    </div>
+                    <select id="modeSelect" class="text-input" onchange="setMode(this.value)" style="margin-bottom: 1rem; cursor: pointer; background: rgba(0,0,0,0.6);">
+                        <option value="grams" style="background: #0f172a; color: #fff;">Grams</option>
+                        <option value="pieces" style="background: #0f172a; color: #fff;">Pieces</option>
+                        <option value="servings" style="background: #0f172a; color: #fff;">Servings</option>
+                    </select>
 
                     <div class="dynamic-input-container">
                         <!-- Grams Mode -->
@@ -782,9 +781,10 @@
         
         function setMode(mode) {
             currentMode = mode;
-            const btns = document.querySelectorAll('.toggle-btn');
-            btns.forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
+            const selectEl = document.getElementById('modeSelect');
+            if (selectEl) {
+                selectEl.value = mode;
+            }
 
             if (mode === 'grams') {
                 gramsView.style.display = 'flex';

@@ -1,7 +1,7 @@
 """
 Food Calorie Estimation API using Flask and CNN Deep Learning Model
 """
-from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash, g
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -62,42 +62,110 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "super_secret_dev_key")
 CORS(app)
 
-# Database initialization
-DB_USERS_PATH = os.path.join(os.path.dirname(__file__), 'data', 'users.json')
-DB_FOODS_PATH = os.path.join(os.path.dirname(__file__), 'data', 'foods.json')
-DB_LOGS_PATH = os.path.join(os.path.dirname(__file__), 'data', 'activity_logs.json')
-DB_AUDIT_PATH = os.path.join(os.path.dirname(__file__), 'data', 'audit_logs.json')
+# ─── SQLite Database Setup ───────────────────────────────────────────────────
+DB_PATH = os.path.join(os.path.dirname(__file__), 'app.db')
 
 ADMIN_EMAILS = [
     "admin@example.com",
     "YOUR_REAL_EMAIL@gmail.com"
 ]
 
-def load_json_db(path):
-    if not os.path.exists(path):
-        return []
-    with open(path, 'r') as f:
-        try:
-            return json.load(f)
-        except:
-            return []
+def get_db():
+    """Get a per-request SQLite connection stored on Flask's 'g' object."""
+    if 'db' not in g:
+        g.db = sqlite3.connect(DB_PATH)
+        g.db.row_factory = sqlite3.Row  # rows behave like dicts
+        g.db.execute("PRAGMA journal_mode=WAL")  # safe for concurrent reads
+    return g.db
 
-def save_json_db(path, data):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w') as f:
-        json.dump(data, f, indent=4)
+@app.teardown_appcontext
+def close_db(error):
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
 
 def init_db():
-    if not os.path.exists(DB_USERS_PATH):
-        save_json_db(DB_USERS_PATH, [])
-    if not os.path.exists(DB_FOODS_PATH):
-        save_json_db(DB_FOODS_PATH, [])
-    if not os.path.exists(DB_LOGS_PATH):
-        save_json_db(DB_LOGS_PATH, [])
-    if not os.path.exists(DB_AUDIT_PATH):
-        save_json_db(DB_AUDIT_PATH, [])
+    """Create all tables if they don't exist."""
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.executescript("""
+        CREATE TABLE IF NOT EXISTS users (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            username    TEXT NOT NULL UNIQUE,
+            email       TEXT NOT NULL UNIQUE,
+            password    TEXT NOT NULL,
+            role        TEXT NOT NULL DEFAULT 'user',
+            banned      INTEGER NOT NULL DEFAULT 0,
+            created_at  TEXT,
+            last_active TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS foods (
+            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            name     TEXT NOT NULL,
+            calories REAL,
+            protein  REAL,
+            carbs    REAL,
+            fat      REAL,
+            serving  TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS activity_logs (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email  TEXT,
+            action_type TEXT,
+            food_name   TEXT,
+            quantity    TEXT,
+            calories    REAL,
+            timestamp   TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id        INTEGER,
+            admin_username  TEXT,
+            action          TEXT,
+            target_user_id  INTEGER,
+            details         TEXT,
+            timestamp       TEXT
+        );
+    """)
+    
+    # Dynamic schema updates for user goals
+    cur.execute("PRAGMA table_info(users)")
+    columns = [col[1] for col in cur.fetchall()]
+    if 'calorie_goal' not in columns:
+        cur.execute("ALTER TABLE users ADD COLUMN calorie_goal INTEGER DEFAULT 2000")
+    if 'protein_goal' not in columns:
+        cur.execute("ALTER TABLE users ADD COLUMN protein_goal INTEGER DEFAULT 150")
+    if 'carbs_goal' not in columns:
+        cur.execute("ALTER TABLE users ADD COLUMN carbs_goal INTEGER DEFAULT 250")
+    if 'fat_goal' not in columns:
+        cur.execute("ALTER TABLE users ADD COLUMN fat_goal INTEGER DEFAULT 70")
+        
+    conn.commit()
+    conn.close()
+    print("[OK] SQLite database initialised at", DB_PATH)
 
 init_db()
+
+def create_default_admin():
+    """Insert the default admin account if it doesn't exist yet."""
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM users WHERE email = ?", ("admin@example.com",))
+    if cur.fetchone() is None:
+        from datetime import datetime
+        cur.execute(
+            "INSERT INTO users (username, email, password, role, created_at, last_active) VALUES (?, ?, ?, ?, ?, ?)",
+            ("admin", "admin@example.com", generate_password_hash("admin123"),
+             "admin", datetime.utcnow().isoformat(), datetime.utcnow().isoformat())
+        )
+        conn.commit()
+        print("[OK] Default admin created  ->  admin@example.com / admin123")
+    conn.close()
+
+create_default_admin()
 
 # Food classes that our model can predict
 FOOD_CLASSES = [
@@ -193,10 +261,10 @@ def normalize_food_name(food_name):
 
     return normalized
 
-# PyTorch / timm / torchvision imports removed for Render deployment
-# import torch
-# import timm
-# from torchvision import transforms
+import torch
+import torchvision.models as models
+import torchvision.transforms as transforms
+from PIL import Image
 import json
 
 def load_mapping():
@@ -215,41 +283,93 @@ def load_mapping():
 
 load_mapping()
 
+# Standard ImageNet pre-processing transform for MobileNetV2
+predict_transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
+])
+
 def load_model():
-    """Mock load_model for production without timm."""
+    """Load CNN model weights from local path."""
     global model
-    model = None
+    try:
+        model_path = os.path.join(os.path.dirname(__file__), 'food101_mobilenet_v2.pth')
+        if os.path.exists(model_path):
+            print("Loading CNN model weights from:", model_path)
+            model = models.mobilenet_v2(num_classes=101)
+            model.load_state_dict(torch.load(model_path, map_location='cpu'))
+            model.eval()
+            print("[OK] CNN Model loaded successfully!")
+        else:
+            print("[Warning] Local CNN model file not found. Fallback to mock.")
+            model = None
+    except Exception as e:
+        print("Error loading CNN model:", e)
+        model = None
     return model
 
-# Global initialization at startup disabled
-# load_model()
+# Load model at startup
+load_model()
 
 import io
 
-# ===== AI PREDICTION FINAL FIX =====
-
-#mport torch
-#mport torch.nn.functional as F
-#rom torchvision import transforms
-#rom PIL import Image
-
 def predict_food(image_data):
     """
-    Mocked food prediction for Render free tier deployment.
-    Simulates AI image prediction returning Pizza.
+    Perform CNN food classification on the input image.
     """
-    food_name = "Pizza"
-    confidence = 0.92
-    predictions_list = [
-        {"name": "Pizza", "confidence": 92},
-        {"name": "Burger", "confidence": 5},
-        {"name": "Pasta", "confidence": 3}
-    ]
-    return food_name, confidence, predictions_list
+    global model, food_labels
+    if model is None:
+        load_model()
+    if model is None:
+        print("CNN model unavailable, fallback to mock Pizza")
+        return "Pizza", 0.92, [
+            {"name": "Pizza", "confidence": 92.0},
+            {"name": "Burger", "confidence": 5.0},
+            {"name": "Pasta", "confidence": 3.0}
+        ]
+
+    try:
+        img = Image.open(io.BytesIO(image_data)).convert('RGB')
+        tensor = predict_transform(img).unsqueeze(0)
+        
+        with torch.no_grad():
+            outputs = model(tensor)
+            probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
+            
+        top3_prob, top3_indices = torch.topk(probabilities, 3)
+        
+        predictions_list = []
+        for i in range(3):
+            prob = float(top3_prob[i])
+            idx = int(top3_indices[i])
+            # Fetch label and clean it
+            class_name = food_labels[idx]
+            predictions_list.append({
+                "name": class_name,
+                "confidence": round(prob * 100, 1)
+            })
+            
+        best_name = predictions_list[0]["name"]
+        best_conf = predictions_list[0]["confidence"] / 100.0
+        
+        return best_name, best_conf, predictions_list
+    except Exception as e:
+        print("Prediction error:", e)
+        return "Pizza", 0.92, [
+            {"name": "Pizza", "confidence": 92.0},
+            {"name": "Burger", "confidence": 5.0},
+            {"name": "Pasta", "confidence": 3.0}
+        ]
     
 import time
 
 @app.route('/predict', methods=['POST'])
+@app.route('/api/predict', methods=['POST'])
 def predict():
     """
     Predict food and calories from uploaded image.
@@ -288,9 +408,6 @@ def predict():
                 "error": "No image provided. Please upload an image file or send base64 encoded image."
             }), 400
         
-        # Manual wait mechanism
-        time.sleep(3)
-        
         # Predict food class with final fix logic
         food_name, confidence, predictions_list = predict_food(image_data)
 
@@ -315,8 +432,11 @@ def predict():
         if predicted_food != "Unknown Food":
             normalized_name = normalize_food_name(predicted_food)
             calorie_info = get_calories_from_api(normalized_name)
-            if (not calorie_info or calorie_info.get("calories") == "Unknown") and normalized_name in CALORIE_DATA:
-                calorie_info = CALORIE_DATA[normalized_name]
+            if not calorie_info or calorie_info.get("calories") == "Unknown":
+                if normalized_name in CALORIE_DATA:
+                    calorie_info = CALORIE_DATA[normalized_name]
+                elif normalized_name.replace(' ', '_') in CALORIE_DATA:
+                    calorie_info = CALORIE_DATA[normalized_name.replace(' ', '_')]
 
         if calorie_info is None:
             calorie_info = {
@@ -491,12 +611,12 @@ def login():
         else:
             email = request.form.get('email')
             password = request.form.get('password')
-            
-        users = load_json_db(DB_USERS_PATH)
-        user = next((u for u in users if u.get('email') == email), None)
-        
+
+        db = get_db()
+        user = db.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+
         if user and check_password_hash(user['password'], password):
-            if user.get('banned'):
+            if user['banned']:
                 if request.is_json:
                     return jsonify({"success": False, "error": "Your account has been banned. Please contact the administrator."}), 403
                 flash('Your account has been banned. Please contact the administrator.', 'error')
@@ -504,24 +624,26 @@ def login():
 
             session['user_id'] = user['id']
             session['username'] = user['username']
-            session['role'] = user.get('role', 'user')
-            session['email'] = user.get('email', '')
-            
+            session['role'] = user['role']
+            session['email'] = user['email']
+
             from datetime import datetime
-            user['last_active'] = datetime.utcnow().isoformat()
-            save_json_db(DB_USERS_PATH, users)
-            
+            db.execute("UPDATE users SET last_active = ? WHERE id = ?",
+                       (datetime.utcnow().isoformat(), user['id']))
+            db.commit()
+
             role = session['role']
             redirect_url = url_for("admin_dashboard") if role == "admin" else url_for("user_dashboard")
-            
+
             if request.is_json:
-                return jsonify({"success": True, "role": role, "user_id": user['id'], "username": user['username'], "redirect": redirect_url})
+                return jsonify({"success": True, "role": role, "user_id": user['id'],
+                                "username": user['username'], "redirect": redirect_url})
             return redirect(redirect_url)
         else:
             if request.is_json:
                 return jsonify({"success": False, "error": "Invalid email or password"}), 401
             flash('Invalid email or password', 'error')
-            
+
     return render_template('login.html')
 
 @app.route("/signup", methods=['GET', 'POST'])
@@ -536,45 +658,40 @@ def signup():
             username = request.form.get('username')
             email = request.form.get('email')
             password = request.form.get('password')
-            
+
         if not username or not password or not email:
             if request.is_json:
                 return jsonify({"success": False, "error": "Username, email and password are required"}), 400
             flash('Username, email and Password are required', 'error')
             return render_template('signup.html')
-            
-        users = load_json_db(DB_USERS_PATH)
-        
-        if any(u.get('email') == email for u in users) or any(u.get('username') == username for u in users):
+
+        db = get_db()
+        existing = db.execute(
+            "SELECT id FROM users WHERE email = ? OR username = ?", (email, username)
+        ).fetchone()
+        if existing:
             if request.is_json:
                 return jsonify({"success": False, "error": "Username or email already exists"}), 409
             flash('Username or email already exists', 'error')
             return render_template('signup.html')
-            
-        hashed_password = generate_password_hash(password)
-        role = "admin" if email in ADMIN_EMAILS else "user"
-        new_id = max([u.get('id', 0) for u in users] + [0]) + 1
-        
+
         from datetime import datetime
         now_iso = datetime.utcnow().isoformat()
-        
-        users.append({
-            "id": new_id,
-            "username": username,
-            "email": email,
-            "password": hashed_password,
-            "role": role,
-            "created_at": now_iso,
-            "last_active": now_iso
-        })
-        save_json_db(DB_USERS_PATH, users)
-        
+        role = "admin" if email in ADMIN_EMAILS else "user"
+        hashed_password = generate_password_hash(password)
+
+        db.execute(
+            "INSERT INTO users (username, email, password, role, created_at, last_active) VALUES (?, ?, ?, ?, ?, ?)",
+            (username, email, hashed_password, role, now_iso, now_iso)
+        )
+        db.commit()
+
         if request.is_json:
-            return jsonify({"success": True, "message": "Account created successfully! Please login.", "redirect": url_for("login")})
-            
+            return jsonify({"success": True, "message": "Account created successfully! Please login.",
+                            "redirect": url_for("login")})
         flash('Account created successfully! Please login.', 'success')
         return redirect(url_for('login'))
-            
+
     return render_template('signup.html')
 
 @app.route("/register", methods=['POST'])
@@ -610,51 +727,82 @@ def health():
 
 @app.route("/api/foods")
 def foods():
-    return {"foods": FOOD_CLASSES}
+    return {"foods": food_labels}
+
+@app.route("/api/user/goals", methods=['GET', 'POST'])
+def user_goals():
+    if 'user_id' not in session:
+        return jsonify({"success": False, "error": "Not logged in"}), 401
+    
+    db = get_db()
+    user_id = session['user_id']
+    
+    if request.method == 'POST':
+        data = request.get_json()
+        calorie_goal = data.get('calorie_goal')
+        protein_goal = data.get('protein_goal')
+        carbs_goal = data.get('carbs_goal')
+        fat_goal = data.get('fat_goal')
+        
+        try:
+            calorie_goal = int(calorie_goal)
+            protein_goal = int(protein_goal)
+            carbs_goal = int(carbs_goal)
+            fat_goal = int(fat_goal)
+            if calorie_goal <= 0 or protein_goal <= 0 or carbs_goal <= 0 or fat_goal <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Invalid goals. Must be positive integers."}), 400
+            
+        db.execute(
+            "UPDATE users SET calorie_goal = ?, protein_goal = ?, carbs_goal = ?, fat_goal = ? WHERE id = ?",
+            (calorie_goal, protein_goal, carbs_goal, fat_goal, user_id)
+        )
+        db.commit()
+        return jsonify({"success": True, "message": "Goals updated successfully."})
+        
+    user = db.execute("SELECT calorie_goal, protein_goal, carbs_goal, fat_goal FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        return jsonify({"success": False, "error": "User not found"}), 404
+        
+    return jsonify({
+        "success": True,
+        "goals": {
+            "calorie_goal": user['calorie_goal'],
+            "protein_goal": user['protein_goal'],
+            "carbs_goal": user['carbs_goal'],
+            "fat_goal": user['fat_goal']
+        }
+    })
 
 @app.route('/api/log_activity', methods=['POST'])
 def log_activity():
     if 'user_id' not in session:
         return jsonify({"success": False, "error": "Not logged in"}), 401
-    
+
     data = request.get_json()
     action_type = data.get('action_type', 'unknown')
     food_name = data.get('food_name', '')
     quantity = data.get('quantity', '')
     calories = data.get('calories', 0)
-    
-    # Resolve email
-    email = session.get('email')
-    users = load_json_db(DB_USERS_PATH)
-    user = next((u for u in users if u.get('id') == session['user_id']), None)
-    if user:
-        if not email:
-            email = user.get('email')
-            session['email'] = email
-            
-        from datetime import datetime
-        now_iso = datetime.utcnow().isoformat()
-        user['last_active'] = now_iso
-        save_json_db(DB_USERS_PATH, users)
-    else:
-        email = "Unknown"
-        from datetime import datetime
-        now_iso = datetime.utcnow().isoformat()
 
-    logs = load_json_db(DB_LOGS_PATH)
-    new_log = {
-        "id": max([l.get('id', 0) for l in logs] + [0]) + 1,
-        "user_email": email,
-        "action_type": action_type,
-        "food_name": food_name,
-        "quantity": quantity,
-        "calories": calories,
-        "timestamp": now_iso
-    }
-    
-    logs.append(new_log)
-    save_json_db(DB_LOGS_PATH, logs)
-    
+    from datetime import datetime
+    now_iso = datetime.utcnow().isoformat()
+
+    db = get_db()
+    email = session.get('email', 'Unknown')
+
+    # Update last_active for the user
+    db.execute("UPDATE users SET last_active = ? WHERE id = ?",
+               (now_iso, session['user_id']))
+
+    # Insert activity log
+    db.execute(
+        "INSERT INTO activity_logs (user_email, action_type, food_name, quantity, calories, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+        (email, action_type, food_name, quantity, calories, now_iso)
+    )
+    db.commit()
+
     return jsonify({"success": True})
 
 # === Admin API Routes ===
@@ -670,34 +818,27 @@ def admin_required(f):
 @app.route("/admin/stats")
 @admin_required
 def admin_stats():
-    users = load_json_db(DB_USERS_PATH)
-    foods = load_json_db(DB_FOODS_PATH)
-    logs = load_json_db(DB_LOGS_PATH)
-    
-    total_users = len(users)
-    total_foods = len(foods)
-    admin_count = sum(1 for u in users if u.get('role') == 'admin')
-    user_count = sum(1 for u in users if u.get('role') == 'user')
-    total_searches = sum(1 for l in logs if l.get('action_type') == 'search')
-    
-    # Active Users Today
     from datetime import datetime
-    active_today = 0
-    today = datetime.utcnow().date()
-    for u in users:
-        la = u.get('last_active')
-        if la:
-            try:
-                if datetime.fromisoformat(la).date() == today:
-                    active_today += 1
-            except:
-                pass
-                
-    # Most searched food
     from collections import Counter
-    searched_foods = [l.get('food_name') for l in logs if l.get('action_type') == 'search' and l.get('food_name')]
-    most_searched = Counter(searched_foods).most_common(1)[0][0] if searched_foods else "None"
-    
+
+    db = get_db()
+    total_users  = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    total_foods  = db.execute("SELECT COUNT(*) FROM foods").fetchone()[0]
+    admin_count  = db.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0]
+    user_count   = db.execute("SELECT COUNT(*) FROM users WHERE role = 'user'").fetchone()[0]
+    total_searches = db.execute("SELECT COUNT(*) FROM activity_logs WHERE action_type = 'search'").fetchone()[0]
+
+    today_str = datetime.utcnow().date().isoformat()
+    active_today = db.execute(
+        "SELECT COUNT(*) FROM users WHERE last_active LIKE ?", (today_str + '%',)
+    ).fetchone()[0]
+
+    row = db.execute(
+        "SELECT food_name FROM activity_logs WHERE action_type = 'search' AND food_name != '' "
+        "GROUP BY food_name ORDER BY COUNT(*) DESC LIMIT 1"
+    ).fetchone()
+    most_searched = row[0] if row else "None"
+
     return jsonify({
         "totalUsers": total_users,
         "totalFoods": total_foods,
@@ -711,14 +852,18 @@ def admin_stats():
 @app.route("/admin/activity_logs")
 @admin_required
 def admin_activity_logs():
-    logs = load_json_db(DB_LOGS_PATH)
-    return jsonify({"logs": sorted(logs, key=lambda x: x.get('timestamp', ''), reverse=True)})
+    db = get_db()
+    rows = db.execute(
+        "SELECT * FROM activity_logs ORDER BY timestamp DESC"
+    ).fetchall()
+    return jsonify({"logs": [dict(r) for r in rows]})
 
 @app.route("/admin/get_foods")
 @admin_required
 def get_foods_api():
-    foods = load_json_db(DB_FOODS_PATH)
-    return jsonify({"foods": foods})
+    db = get_db()
+    rows = db.execute("SELECT * FROM foods").fetchall()
+    return jsonify({"foods": [dict(r) for r in rows]})
 
 @app.route("/admin-dashboard")
 @admin_required
@@ -729,9 +874,11 @@ def admin_dashboard():
 @app.route("/admin/users")
 @admin_required
 def admin_users():
-    users = load_json_db(DB_USERS_PATH)
-    # Remove passwords from response for security
-    users_safe = [{k: v for k, v in u.items() if k != 'password'} for u in users]
+    db = get_db()
+    rows = db.execute(
+        "SELECT id, username, email, role, banned, created_at, last_active FROM users"
+    ).fetchall()
+    users_safe = [dict(r) for r in rows]
     if request.is_json or request.headers.get('Accept') == 'application/json':
         return jsonify({"users": users_safe})
     return render_template('users.html', users=users_safe)
@@ -742,16 +889,17 @@ def delete_user(id):
     if id == session.get('user_id'):
         flash('Cannot delete yourself!', 'error')
         return redirect(url_for('admin_users'))
-    users = load_json_db(DB_USERS_PATH)
-    users = [u for u in users if u.get('id') != id]
-    save_json_db(DB_USERS_PATH, users)
+    db = get_db()
+    db.execute("DELETE FROM users WHERE id = ?", (id,))
+    db.commit()
     flash('User deleted successfully.', 'success')
     return redirect(url_for('admin_users'))
 
 @app.route("/admin/foods")
 @admin_required
 def admin_foods():
-    foods = load_json_db(DB_FOODS_PATH)
+    db = get_db()
+    foods = [dict(r) for r in db.execute("SELECT * FROM foods").fetchall()]
     return render_template('foods.html', foods=foods)
 
 @app.route("/admin/add_food", methods=['GET', 'POST'])
@@ -773,41 +921,35 @@ def add_food():
             protein = request.form.get('protein', 0)
             carbs = request.form.get('carbs', 0)
             fat = request.form.get('fat', 0)
-        
+
         if not name or not calories:
             if request.is_json:
                 return jsonify({"success": False, "error": "Name and Calories are required."}), 400
             flash('Name and Calories are required.', 'error')
             return render_template('add_food.html')
-            
-        foods = load_json_db(DB_FOODS_PATH)
-        new_id = max([f.get('id', 0) for f in foods] + [0]) + 1
-        new_food = {
-            "id": new_id,
-            "name": name,
-            "calories": float(calories),
-            "protein": float(protein),
-            "carbs": float(carbs),
-            "fat": float(fat),
-            "serving": serving
-        }
-        foods.append(new_food)
-        save_json_db(DB_FOODS_PATH, foods)
-        
+
+        db = get_db()
+        cur = db.execute(
+            "INSERT INTO foods (name, calories, protein, carbs, fat, serving) VALUES (?, ?, ?, ?, ?, ?)",
+            (name, float(calories), float(protein), float(carbs), float(fat), serving)
+        )
+        db.commit()
+        new_food = {"id": cur.lastrowid, "name": name, "calories": float(calories),
+                    "protein": float(protein), "carbs": float(carbs), "fat": float(fat), "serving": serving}
+
         if request.is_json:
             return jsonify({"success": True, "message": "Food added successfully.", "food": new_food})
-        
         flash('Food added successfully.', 'success')
         return redirect(url_for('admin_foods'))
-        
+
     return render_template('add_food.html')
 
 @app.route("/admin/delete_food/<int:id>", methods=['POST'])
 @admin_required
 def delete_food(id):
-    foods = load_json_db(DB_FOODS_PATH)
-    foods = [f for f in foods if f.get('id') != id]
-    save_json_db(DB_FOODS_PATH, foods)
+    db = get_db()
+    db.execute("DELETE FROM foods WHERE id = ?", (id,))
+    db.commit()
     flash('Food deleted successfully.', 'success')
     return redirect(url_for('admin_foods'))
 
@@ -816,17 +958,13 @@ from datetime import datetime
 
 def write_audit_log(admin_id, admin_username, action, target_user_id=None, details=""):
     """Write an entry to the admin audit log."""
-    logs = load_json_db(DB_AUDIT_PATH)
-    logs.append({
-        "id": max([l.get('id', 0) for l in logs] + [0]) + 1,
-        "admin_id": admin_id,
-        "admin_username": admin_username,
-        "action": action,
-        "target_user_id": target_user_id,
-        "details": details,
-        "timestamp": datetime.utcnow().isoformat()
-    })
-    save_json_db(DB_AUDIT_PATH, logs)
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        "INSERT INTO audit_logs (admin_id, admin_username, action, target_user_id, details, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+        (admin_id, admin_username, action, target_user_id, details, datetime.utcnow().isoformat())
+    )
+    conn.commit()
+    conn.close()
 
 
 # ── BAN / UNBAN USER ─────────────────────────────────────────────
@@ -836,38 +974,32 @@ def ban_user(id):
     if id == session.get('user_id'):
         return jsonify({"success": False, "error": "You cannot ban yourself."}), 400
 
-    users = load_json_db(DB_USERS_PATH)
-    user = next((u for u in users if u.get('id') == id), None)
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE id = ?", (id,)).fetchone()
     if not user:
         return jsonify({"success": False, "error": "User not found."}), 404
 
-    user['banned'] = True
-    save_json_db(DB_USERS_PATH, users)
+    db.execute("UPDATE users SET banned = 1 WHERE id = ?", (id,))
+    db.commit()
 
-    write_audit_log(
-        session['user_id'], session['username'],
-        "ban_user", id,
-        f"Banned user: {user['username']} ({user['email']})"
-    )
+    write_audit_log(session['user_id'], session['username'], "ban_user", id,
+                    f"Banned user: {user['username']} ({user['email']})")
     return jsonify({"success": True, "message": f"User '{user['username']}' has been banned."})
 
 
 @app.route("/admin/unban_user/<int:id>", methods=['POST'])
 @admin_required
 def unban_user(id):
-    users = load_json_db(DB_USERS_PATH)
-    user = next((u for u in users if u.get('id') == id), None)
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE id = ?", (id,)).fetchone()
     if not user:
         return jsonify({"success": False, "error": "User not found."}), 404
 
-    user['banned'] = False
-    save_json_db(DB_USERS_PATH, users)
+    db.execute("UPDATE users SET banned = 0 WHERE id = ?", (id,))
+    db.commit()
 
-    write_audit_log(
-        session['user_id'], session['username'],
-        "unban_user", id,
-        f"Unbanned user: {user['username']} ({user['email']})"
-    )
+    write_audit_log(session['user_id'], session['username'], "unban_user", id,
+                    f"Unbanned user: {user['username']} ({user['email']})")
     return jsonify({"success": True, "message": f"User '{user['username']}' has been unbanned."})
 
 
@@ -878,22 +1010,18 @@ def promote_user(id):
     if id == session.get('user_id'):
         return jsonify({"success": False, "error": "You are already an admin."}), 400
 
-    users = load_json_db(DB_USERS_PATH)
-    user = next((u for u in users if u.get('id') == id), None)
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE id = ?", (id,)).fetchone()
     if not user:
         return jsonify({"success": False, "error": "User not found."}), 404
-
-    if user.get('role') == 'admin':
+    if user['role'] == 'admin':
         return jsonify({"success": False, "error": "User is already an admin."}), 400
 
-    user['role'] = 'admin'
-    save_json_db(DB_USERS_PATH, users)
+    db.execute("UPDATE users SET role = 'admin' WHERE id = ?", (id,))
+    db.commit()
 
-    write_audit_log(
-        session['user_id'], session['username'],
-        "promote_user", id,
-        f"Promoted user to admin: {user['username']} ({user['email']})"
-    )
+    write_audit_log(session['user_id'], session['username'], "promote_user", id,
+                    f"Promoted user to admin: {user['username']} ({user['email']})")
     return jsonify({"success": True, "message": f"User '{user['username']}' has been promoted to admin."})
 
 
@@ -904,22 +1032,18 @@ def demote_user(id):
     if id == session.get('user_id'):
         return jsonify({"success": False, "error": "You cannot demote yourself."}), 400
 
-    users = load_json_db(DB_USERS_PATH)
-    user = next((u for u in users if u.get('id') == id), None)
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE id = ?", (id,)).fetchone()
     if not user:
         return jsonify({"success": False, "error": "User not found."}), 404
-
-    if user.get('role') != 'admin':
+    if user['role'] != 'admin':
         return jsonify({"success": False, "error": "User is not an admin."}), 400
 
-    user['role'] = 'user'
-    save_json_db(DB_USERS_PATH, users)
+    db.execute("UPDATE users SET role = 'user' WHERE id = ?", (id,))
+    db.commit()
 
-    write_audit_log(
-        session['user_id'], session['username'],
-        "demote_user", id,
-        f"Demoted admin to user: {user['username']} ({user['email']})"
-    )
+    write_audit_log(session['user_id'], session['username'], "demote_user", id,
+                    f"Demoted admin to user: {user['username']} ({user['email']})")
     return jsonify({"success": True, "message": f"User '{user['username']}' has been demoted to regular user."})
 
 
@@ -935,31 +1059,35 @@ def edit_user(id):
     if not new_username or not new_email:
         return jsonify({"success": False, "error": "Username and email are required."}), 400
 
-    users = load_json_db(DB_USERS_PATH)
-    user = next((u for u in users if u.get('id') == id), None)
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE id = ?", (id,)).fetchone()
     if not user:
         return jsonify({"success": False, "error": "User not found."}), 404
 
     # Check duplicates (excluding self)
-    if any(u.get('email') == new_email and u.get('id') != id for u in users):
-        return jsonify({"success": False, "error": "Email already in use."}), 409
-    if any(u.get('username') == new_username and u.get('id') != id for u in users):
-        return jsonify({"success": False, "error": "Username already in use."}), 409
+    dup = db.execute(
+        "SELECT id FROM users WHERE (email = ? OR username = ?) AND id != ?",
+        (new_email, new_username, id)
+    ).fetchone()
+    if dup:
+        return jsonify({"success": False, "error": "Email or username already in use."}), 409
 
     old_username = user['username']
-    user['username'] = new_username
-    user['email'] = new_email
     if new_password:
-        user['password'] = generate_password_hash(new_password)
+        db.execute(
+            "UPDATE users SET username = ?, email = ?, password = ? WHERE id = ?",
+            (new_username, new_email, generate_password_hash(new_password), id)
+        )
+    else:
+        db.execute(
+            "UPDATE users SET username = ?, email = ? WHERE id = ?",
+            (new_username, new_email, id)
+        )
+    db.commit()
 
-    save_json_db(DB_USERS_PATH, users)
-
-    write_audit_log(
-        session['user_id'], session['username'],
-        "edit_user", id,
-        f"Edited user: {old_username} → {new_username} ({new_email})"
-        + (" [password reset]" if new_password else "")
-    )
+    write_audit_log(session['user_id'], session['username'], "edit_user", id,
+                    f"Edited user: {old_username} → {new_username} ({new_email})"
+                    + (" [password reset]" if new_password else ""))
     return jsonify({"success": True, "message": f"User '{new_username}' updated successfully."})
 
 
@@ -970,19 +1098,16 @@ def delete_user_ajax(id):
     if id == session.get('user_id'):
         return jsonify({"success": False, "error": "You cannot delete yourself."}), 400
 
-    users = load_json_db(DB_USERS_PATH)
-    user = next((u for u in users if u.get('id') == id), None)
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE id = ?", (id,)).fetchone()
     if not user:
         return jsonify({"success": False, "error": "User not found."}), 404
 
-    users = [u for u in users if u.get('id') != id]
-    save_json_db(DB_USERS_PATH, users)
+    db.execute("DELETE FROM users WHERE id = ?", (id,))
+    db.commit()
 
-    write_audit_log(
-        session['user_id'], session['username'],
-        "delete_user", id,
-        f"Deleted user: {user['username']} ({user['email']})"
-    )
+    write_audit_log(session['user_id'], session['username'], "delete_user", id,
+                    f"Deleted user: {user['username']} ({user['email']})")
     return jsonify({"success": True, "message": f"User '{user['username']}' deleted."})
 
 
@@ -990,9 +1115,9 @@ def delete_user_ajax(id):
 @app.route("/admin/audit_logs")
 @admin_required
 def admin_audit_logs():
-    logs = load_json_db(DB_AUDIT_PATH)
-    logs_sorted = sorted(logs, key=lambda x: x.get('timestamp', ''), reverse=True)
-    return jsonify({"logs": logs_sorted})
+    db = get_db()
+    rows = db.execute("SELECT * FROM audit_logs ORDER BY timestamp DESC").fetchall()
+    return jsonify({"logs": [dict(r) for r in rows]})
 
 
 # ── RESET USER PASSWORD ───────────────────────────────────────────
@@ -1005,19 +1130,17 @@ def reset_password(id):
     if not new_password or len(new_password) < 6:
         return jsonify({"success": False, "error": "Password must be at least 6 characters."}), 400
 
-    users = load_json_db(DB_USERS_PATH)
-    user = next((u for u in users if u.get('id') == id), None)
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE id = ?", (id,)).fetchone()
     if not user:
         return jsonify({"success": False, "error": "User not found."}), 404
 
-    user['password'] = generate_password_hash(new_password)
-    save_json_db(DB_USERS_PATH, users)
+    db.execute("UPDATE users SET password = ? WHERE id = ?",
+               (generate_password_hash(new_password), id))
+    db.commit()
 
-    write_audit_log(
-        session['user_id'], session['username'],
-        "reset_password", id,
-        f"Reset password for: {user['username']} ({user['email']})"
-    )
+    write_audit_log(session['user_id'], session['username'], "reset_password", id,
+                    f"Reset password for: {user['username']} ({user['email']})")
     return jsonify({"success": True, "message": f"Password for '{user['username']}' has been reset."})
 
 if __name__ == "__main__":

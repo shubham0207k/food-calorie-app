@@ -1,37 +1,19 @@
-d
+[
+    {
+        "id": 1,
+        "username": "admin",
+        "email": "admin@example.com",
+        "password": "scrypt:32768:8:1$dM69mKt4HXxMwSYh$f1218baf595274acf1c4602a842ed4108676d7c22553daab0ac148ac5cfc7809e4d63673baf681945d4a6ac83110a5bd3210632d89ba2acae2f1d4d690c3ff7a",
+        "role": "admin",
+        "last_active": "2026-07-13T06:25:14.730690"
+    },
     {
         "id": 2,
-        "username": "shubham",
-        "email": "shubh234@gmail.com",
-        "password": "scrypt:32768:8:1$K0XO9eoSUtXspz25$503040a42bd1c2de00c04d83f3c095f34132e75358b54fd28d08b5e6caa90c0a09084eabee8f4f86b8322638132be51b9b13904390bc7243a3bdcd3b8420983c",
-        "role": "user"
-    },
-    {
-        "id": 3,
-        "username": "shubh",
-        "email": "shubh65@gmail.com",
-        "password": "scrypt:32768:8:1$SyWsHdz2I8hFLM9p$754b10d54dedbc6f885021308937900bb5908681d726add1b017fcbf0889cecadd08b36a7fc57f3a2c9f725957efcb1a27716ae6c14831b6f081137c79e44677",
+        "username": "testuser",
+        "email": "test@test.com",
+        "password": "scrypt:32768:8:1$WYqaND3PCXZ9shks$b72cf32c6af63aa80f7c84257369752ba9a4b730f12dfe15d32d3c159fe75264375539e16ac9a8f57330ef76b21838a0d6c09086e32ae76e397dc7fc9ad46b54",
         "role": "user",
-        "created_at": "2026-04-10T22:22:06.521066",
-        "last_active": "2026-04-10T22:22:06.521066",
-        "banned": true
-    },
-    {
-        "id": 4,
-        "username": "gvgjh",
-        "email": "jhjjh878@gmail.com",
-        "password": "scrypt:32768:8:1$lu8VxbblUNQa4rme$0df6863ba95707977446286897299205cdcc60c16056027e5a94723c1b98bd7b8bcba1d454cb5612424118bc66cb887c458654f0efd006d2a6cb99c07b722e09",
-        "role": "user",
-        "created_at": "2026-05-09T11:50:23.715748",
-        "last_active": "2026-05-09T11:50:23.715748"
-    },
-    {
-        "id": 5,
-        "username": "mcn,c",
-        "email": "897@gmail.com",
-        "password": "scrypt:32768:8:1$ZgMjhD3SIfeMspy9$fba1304275a5e6754663b1421c99f9ecb69ab0cd3f9d4d0c42e6da7b1dc450a7178477e0ef1f9fbbc01e274b5ac2fa6687c0ff8127d35a5d1c8888db27ac9773",
-        "role": "user",
-        "created_at": "2026-05-09T11:51:09.604767",
-        "last_active": "2026-05-09T11:59:54.103012"
+        "created_at": "2026-07-13T06:28:28.063383",
+        "last_active": "2026-07-13T06:28:42.450785"
     }
 ]

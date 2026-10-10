@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-    --primary-color: #a855f7; /* Purple 500 */
+    --primary-color: #7b39b8; /* Purple 500 */
     --primary-hover: #9333ea; /* Purple 600 */
     --primary-gradient: linear-gradient(135deg, #c084fc 0%, #7e22ce 100%);
     --bg-dark: #09090b; /* Very dark zinc */
